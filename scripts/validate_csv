@@ -1,0 +1,108 @@
+import pandas as pd
+from dateutil import parser
+import sys
+import os
+from pathlib import Path
+
+# Resolve paths relative to the backend directory (parent of this scripts folder)
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+DEFAULT_CSV = BACKEND_DIR / "data" / "raw" / "synthetic_bloodwork.csv"
+DEFAULT_OUT = BACKEND_DIR / "data" / "processed" / "cleaned.parquet"
+
+CSV_PATH = sys.argv[1] if len(sys.argv) > 1 else str(DEFAULT_CSV)
+OUT_PATH = str(DEFAULT_OUT)
+
+EXPECTED_COLS = ["numorden", "sexo", "edad", "nombre", "textores", "nombre2", "Date"]
+
+# === FONCTIONS ===
+def try_parse_date(x):
+    """Tente de parser une date au format jour/mois/année."""
+    try:
+        return pd.to_datetime(x, dayfirst=True, errors='coerce')
+    except Exception:
+        return pd.NaT
+
+
+def detect_numeric(x):
+    """Retourne True si la valeur est numérique, False sinon."""
+    try:
+        float(x)
+        return True
+    except Exception:
+        return False
+
+
+# === MAIN ===
+def main():
+    print(f"📂 Lecture du fichier CSV : {CSV_PATH}")
+
+    # Charger le CSV avec encodage tolérant (essai UTF-8 puis fallback Windows/Latin-1)
+    encodings_to_try = [
+        ("utf-8", {}),
+        ("utf-8-sig", {}),
+        ("latin1", {}),
+        ("cp1252", {}),
+        ("latin1", {"errors": "replace"}),
+    ]
+    last_err = None
+    for enc, extra_kwargs in encodings_to_try:
+        try:
+            df = pd.read_csv(CSV_PATH, dtype=str, encoding=enc, sep=",", **extra_kwargs)
+            print(f"✅ Encodage détecté/accepté : {enc}{' (avec errors=replace)' if extra_kwargs.get('errors') == 'replace' else ''}")
+            break
+        except UnicodeDecodeError as e:
+            last_err = e
+            continue
+    else:
+        raise SystemExit(f"❌ Échec de lecture avec encodages essayés. Dernière erreur: {last_err}")
+
+    # Nettoyer les noms de colonnes
+    df.columns = df.columns.str.strip()
+
+    print("🔍 Colonnes trouvées :", list(df.columns))
+
+    # Vérifier les colonnes manquantes
+    missing_cols = [c for c in EXPECTED_COLS if c not in df.columns]
+    if missing_cols:
+        raise SystemExit(f"❌ Erreur : colonnes manquantes : {missing_cols}")
+
+    # Vérifier si les colonnes sont dans le bon ordre
+    if list(df.columns) != EXPECTED_COLS:
+        print("⚠️  Colonnes présentes mais ordre différent. Réorganisation automatique.")
+        df = df[EXPECTED_COLS].copy()
+
+    # Convertir 'edad' en entier (nullable)
+    df["edad_orig"] = df["edad"]
+    df["edad"] = pd.to_numeric(df["edad"], errors="coerce").astype("Int64")
+
+    # Convertir 'Date' en datetime
+    df["Date_orig"] = df["Date"]
+    df["Date"] = df["Date"].apply(try_parse_date)
+    n_bad_dates = df["Date"].isna().sum()
+    if n_bad_dates:
+        print(f"⚠️  {n_bad_dates} dates invalides détectées (voir 'Date_orig').")
+    df = df.dropna(subset=["Date"])
+
+    # Normaliser 'sexo'
+    df["sexo"] = df["sexo"].str.strip().str.upper().replace({
+        "MASC": "M", "FEM": "F", "FÉMININ": "F", "MASCULIN": "M"
+    })
+
+    # Détecter les valeurs numériques dans 'textores'
+    df["textores_is_numeric"] = df["textores"].apply(detect_numeric)
+
+    # === STATISTIQUES RAPIDES ===
+    print("\n📊 Statistiques rapides :")
+    print("Total lignes :", len(df))
+    print("Valeurs manquantes par colonne :")
+    print(df[EXPECTED_COLS].isna().sum())
+
+    # === SAUVEGARDE ===
+    os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
+    df.to_parquet(OUT_PATH, index=False)
+    print(f"\n✅ Fichier nettoyé sauvegardé avec succès → {OUT_PATH}")
+
+
+# === POINT D’ENTRÉE ===
+if __name__ == "__main__":
+    main()

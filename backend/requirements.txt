@@ -1,0 +1,51 @@
+# Backend & API
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+
+# ORM / SQL
+sqlmodel
+sqlalchemy
+duckdb
+
+# Data manipulation & storage
+pandas
+pyarrow
+python-dateutil
+numpy
+
+# File uploads & processing
+python-multipart
+openpyxl
+xlrd
+
+# Environment & Configuration
+python-dotenv
+
+# Logging
+loguru
+
+# Security & Authentication (pour RBAC plus tard)
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt
+
+# Testing & Quality
+pytest
+pytest-asyncio
+pytest-cov
+httpx
+
+# Linting & Formatting
+black
+isort
+flake8
+mypy
+
+# Documentation (optionnel)
+# mkdocs
+# mkdocs-material
+
+# Caching (optionnel)
+# redis

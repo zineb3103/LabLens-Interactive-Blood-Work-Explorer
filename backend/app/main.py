@@ -1,0 +1,197 @@
+# backend/app/main.py
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from .api import ingest, subset, stats, panels, repeats, coorder, views
+from .db.base import db
+from .core.config import settings
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Gestionnaire du cycle de vie de l'application
+    Exécuté au démarrage et à l'arrêt du serveur
+    """
+    # ========== STARTUP ==========
+    print("🚀 Démarrage de LabLens API...")
+    
+    # Créer les répertoires nécessaires
+    settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    settings.PARQUET_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    print(f"✅ Répertoires créés: {settings.DATA_DIR}")
+    
+    # Initialiser DuckDB (déjà fait dans le constructeur)
+    try:
+        conn = db.get_connection()
+        conn.execute("SELECT 1").fetchone()
+        print("✅ DuckDB initialisé et prêt")
+    except Exception as e:
+        print(f"⚠️ Erreur DuckDB: {e}")
+    
+    print("✅ LabLens API prête!\n")
+    
+    yield  # L'application s'exécute ici
+    
+    # ========== SHUTDOWN ==========
+    print("\n🛑 Arrêt de LabLens API...")
+    
+    # Fermer proprement la connexion DuckDB
+    try:
+        db.close()
+        print("✅ DuckDB fermé proprement")
+    except Exception as e:
+        print(f"⚠️ Erreur lors de la fermeture: {e}")
+    
+    print("👋 LabLens API arrêtée")
+
+
+# Créer l'application FastAPI avec le gestionnaire de cycle de vie
+app = FastAPI(
+    title="LabLens API",
+    description="API pour l'analyse interactive de données de laboratoire",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# Configuration CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",  # Au cas où le port change
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Inclure tous les routers
+app.include_router(ingest.router, prefix="/api", tags=["Ingestion"])
+app.include_router(subset.router, prefix="/api", tags=["Subset & Filtering"])
+app.include_router(stats.router, prefix="/api", tags=["Statistics"])
+app.include_router(panels.router, prefix="/api", tags=["Panels"])
+app.include_router(repeats.router, prefix="/api", tags=["Repeats"])
+app.include_router(coorder.router, prefix="/api", tags=["Co-Ordering"])
+app.include_router(views.router, prefix="/api", tags=["Views & Cohorts"])
+
+
+@app.get("/", tags=["Root"])
+async def root():
+    """
+    Point d'entrée de l'API
+    """
+    return {
+        "message": "LabLens API - Interactive Blood-Work Explorer",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "redoc": "/redoc",
+        "endpoints": {
+            # Ingestion
+            "upload": "POST /api/ingest",
+            "get_file": "GET /api/files/{file_id}",
+            "get_file_data": "GET /api/files/{file_id}/data",
+            "list_files": "GET /api/files",
+            "delete_file": "DELETE /api/files/{file_id}",
+            
+            # Filtering
+            "subset_manual": "POST /api/subset/manual",
+            "subset_sql": "POST /api/subset/sql",
+            "preview_sql": "POST /api/subset/preview",
+            
+            # Statistics
+            "stats_summary": "POST /api/stats/summary",
+            "column_stats": "GET /api/stats/{file_id}/column/{column_name}",
+            "missing_summary": "GET /api/stats/{file_id}/missing",
+            
+            # Panels
+            "analyze_panels": "GET /api/panels/{file_id}",
+            "patient_panels": "GET /api/panels/{file_id}/patient/{numorden}",
+            "top_panels": "GET /api/panels/{file_id}/top",
+            
+            # Repeats
+            "analyze_repeats": "GET /api/repeats/{file_id}",
+            "test_repeats": "GET /api/repeats/{file_id}/test/{test_name}",
+            "patient_repeats": "GET /api/repeats/{file_id}/patient/{numorden}",
+            
+            # Co-Ordering
+            "analyze_coorder": "GET /api/coorder/{file_id}",
+            "coorder_matrix": "GET /api/coorder/{file_id}/matrix",
+            "coorder_by_service": "GET /api/coorder/{file_id}/service/{service_name}",
+            
+            # Views
+            "create_view": "POST /api/views",
+            "list_views": "GET /api/views",
+            "get_view": "GET /api/views/{view_id}",
+            "update_view": "PUT /api/views/{view_id}",
+            "delete_view": "DELETE /api/views/{view_id}",
+            "apply_view": "POST /api/views/{view_id}/apply",
+            "share_view": "GET /api/views/{view_id}/share",
+            
+            "health": "GET /health"
+        }
+    }
+
+
+@app.get("/health", tags=["Health"])
+async def health_check():
+    """
+    Vérifier l'état de santé de l'API et de ses composants
+    """
+    health_status = {
+        "status": "healthy",
+        "api_version": "1.0.0",
+        "components": {}
+    }
+    
+    # Tester DuckDB
+    try:
+        conn = db.get_connection()
+        result = conn.execute("SELECT 1").fetchone()
+        
+        # Compter les fichiers et résultats
+        files_count = conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
+        results_count = conn.execute("SELECT COUNT(*) FROM results").fetchone()[0]
+        
+        # Compter les vues
+        try:
+            views_count = conn.execute("SELECT COUNT(*) FROM views").fetchone()[0]
+        except:
+            views_count = 0
+        
+        health_status["components"]["duckdb"] = {
+            "status": "healthy",
+            "files": files_count,
+            "results": results_count,
+            "views": views_count
+        }
+    except Exception as e:
+        health_status["components"]["duckdb"] = {
+            "status": "error",
+            "error": str(e)
+        }
+        health_status["status"] = "degraded"
+    
+    # Vérifier le cache Parquet
+    try:
+        parquet_files = list(settings.PARQUET_CACHE_DIR.glob("*.parquet"))
+        health_status["components"]["parquet_cache"] = {
+            "status": "healthy",
+            "path": str(settings.PARQUET_CACHE_DIR),
+            "files_count": len(parquet_files)
+        }
+    except Exception as e:
+        health_status["components"]["parquet_cache"] = {
+            "status": "error",
+            "error": str(e)
+        }
+        health_status["status"] = "degraded"
+    
+    return health_status
+
+
