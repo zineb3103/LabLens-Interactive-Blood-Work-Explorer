@@ -397,17 +397,6 @@ lablens/
 
 ---
 
-## 🤝 Contributing
-
-This is an academic project for IDSCC 5 at ENSAO. For contributions:
-
-1. Follow the existing code style (Black for Python, ESLint for TypeScript)
-2. Write tests for new features
-3. Update documentation as needed
-4. Ensure all tests pass before submitting
-
----
-
 ## 📚 Documentation
 
 Additional documentation available in the `docs/` directory:
@@ -417,14 +406,6 @@ Additional documentation available in the `docs/` directory:
 - `data_schema.md` - Data model specifications
 - `llm_design.md` - LLM integration design
 - `security_model.md` - Security and privacy model
-
----
-
-## 📄 License
-
-This project is developed as part of the IDSCC 5 course at the National School of Applied Sciences (ENSAO), Mohammed First University, Oujda, Morocco.
-
-**Academic Use Only**
 
 ---
 
@@ -458,4 +439,5 @@ For questions or support regarding this project, please contact the course instr
 **Made with ❤️ for IDSCC 5 — Artificial Intelligence, ENSAO**
 
 </div>
+
 
