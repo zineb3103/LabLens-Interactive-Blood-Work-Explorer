@@ -8,6 +8,7 @@ pydantic-settings
 sqlmodel
 sqlalchemy
 duckdb
+duckdb-engine  # Driver SQLAlchemy pour DuckDB
 
 # Data manipulation & storage
 pandas

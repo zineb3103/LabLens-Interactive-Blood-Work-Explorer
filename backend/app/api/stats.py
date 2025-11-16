@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 
 from ..db.base import get_session
 from ..db.models import Result, File
-from ..services.stats_engine import StatsEngine
+from ..services.stats_engine import StatsEngine, convert_numpy_types
 
 router = APIRouter()
 
@@ -115,13 +115,13 @@ async def get_column_stats(file_id: str, column_name: str, session: Session = De
                 "count": int(column_data.count()),
                 "missing": int(column_data.isna().sum()),
                 "missing_pct": float(column_data.isna().sum() / len(column_data) * 100),
-                "mean": float(column_data.mean()),
-                "std": float(column_data.std()),
-                "min": float(column_data.min()),
-                "max": float(column_data.max()),
-                "median": float(column_data.median()),
-                "q25": float(column_data.quantile(0.25)),
-                "q75": float(column_data.quantile(0.75)),
+                "mean": float(column_data.mean()) if column_data.count() > 0 else None,
+                "std": float(column_data.std()) if column_data.count() > 0 else None,
+                "min": float(column_data.min()) if column_data.count() > 0 else None,
+                "max": float(column_data.max()) if column_data.count() > 0 else None,
+                "median": float(column_data.median()) if column_data.count() > 0 else None,
+                "q25": float(column_data.quantile(0.25)) if column_data.count() > 0 else None,
+                "q75": float(column_data.quantile(0.75)) if column_data.count() > 0 else None,
                 "distribution": column_data.value_counts().head(20).to_dict()
             }
         else:
@@ -137,6 +137,9 @@ async def get_column_stats(file_id: str, column_name: str, session: Session = De
                 "freq": int(value_counts.iloc[0]) if len(value_counts) > 0 else 0,
                 "distribution": value_counts.head(20).to_dict()
             }
+        
+        # Convertir tous les types numpy en types Python natifs
+        stats = convert_numpy_types(stats)
         
         return {
             "success": True,

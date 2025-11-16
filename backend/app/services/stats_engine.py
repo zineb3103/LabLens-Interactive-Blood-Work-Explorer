@@ -7,6 +7,31 @@ import numpy as np
 from typing import Dict, Any, List, Optional
 
 
+def convert_numpy_types(obj: Any) -> Any:
+    """
+    Convertir récursivement tous les types numpy en types Python natifs
+    pour permettre la sérialisation JSON
+    """
+    if isinstance(obj, (np.integer, np.int_, np.intc, np.intp, np.int8,
+                        np.int16, np.int32, np.int64, np.uint8, np.uint16,
+                        np.uint32, np.uint64)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float_, np.float16, np.float32, np.float64)):
+        return float(obj)
+    elif isinstance(obj, (np.bool_, np.bool)):
+        return bool(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [convert_numpy_types(item) for item in obj]
+    elif pd.isna(obj):
+        return None
+    else:
+        return obj
+
+
 class StatsEngine:
     """
     Service pour calculer les statistiques descriptives
@@ -42,7 +67,8 @@ class StatsEngine:
             else:
                 summary["categorical_stats"][col] = self._compute_categorical_stats(column_data)
         
-        return summary
+        # Convertir tous les types numpy en types Python natifs
+        return convert_numpy_types(summary)
     
     def _compute_overview(self) -> Dict[str, Any]:
         """Vue d'ensemble des données"""
@@ -105,7 +131,7 @@ class StatsEngine:
             "text_count": int(text_count),
             "numeric_rate": float(numeric_count / total_valid * 100) if total_valid > 0 else 0,
             "text_rate": float(text_count / total_valid * 100) if total_valid > 0 else 0,
-            "mixed_type": numeric_count > 0 and text_count > 0
+            "mixed_type": bool(numeric_count > 0 and text_count > 0)  # Convertir explicitement en bool Python
         }
         
         # Si valeurs numériques présentes, calculer des stats numériques
@@ -130,7 +156,8 @@ class StatsEngine:
                 "top_text_values": {str(k): int(v) for k, v in text_value_counts.head(10).items()}
             }
         
-        return rates
+        # Convertir tous les types numpy avant de retourner
+        return convert_numpy_types(rates)
     
     def _compute_missing_summary(self) -> List[Dict[str, Any]]:
         """Résumé des valeurs manquantes"""

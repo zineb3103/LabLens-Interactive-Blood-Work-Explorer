@@ -1,7 +1,8 @@
 # backend/app/db/models/result.py
-from sqlmodel import SQLModel, Field, Index
+from sqlmodel import SQLModel, Field, Index, Column
 from typing import Optional
-from datetime import date, datetime
+from datetime import date as date_type, datetime
+from sqlalchemy import Date
 
 
 class Result(SQLModel, table=True):
@@ -19,7 +20,7 @@ class Result(SQLModel, table=True):
     nombre: str = Field(index=True, max_length=200)
     textores: str = Field(max_length=500)
     nombre2: str = Field(index=True, max_length=200)
-    date: date = Field(index=True)
+    date: date_type = Field(sa_column=Column(Date, index=True))
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Index composites pour améliorer les performances

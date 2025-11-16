@@ -12,7 +12,7 @@ from sqlmodel import Session, select, func
 from ..services.validator import DataValidator
 from ..core.config import settings
 from ..db.base import get_session
-from ..db.models import Result, File
+from ..db.models import Result, File as FileModel
 
 router = APIRouter()
 
@@ -143,7 +143,7 @@ async def ingest_file(file: UploadFile = File(...), session: Session = Depends(g
         # 9. Sauvegarder dans la base de données avec SQLModel ORM
         try:
             # Enregistrer les métadonnées du fichier
-            file_record = File(
+            file_record = FileModel(
                 file_id=file_id,
                 original_filename=file.filename,
                 row_count=len(cleaned_df),
@@ -172,16 +172,36 @@ async def ingest_file(file: UploadFile = File(...), session: Session = Depends(g
             # Créer les objets Result à partir du DataFrame
             results_to_insert = []
             for idx, row in cleaned_df_db.iterrows():
+                # Gérer les valeurs manquantes/NaN
+                edad_value = row['edad']
+                if pd.isna(edad_value):
+                    edad_value = 0  # Valeur par défaut pour les âges manquants
+                else:
+                    try:
+                        edad_value = int(float(edad_value))
+                    except (ValueError, TypeError):
+                        edad_value = 0
+                
+                # Gérer la date
+                date_value = row['date']
+                if pd.isna(date_value):
+                    date_value = date.today()  # Date par défaut
+                elif not isinstance(date_value, date):
+                    try:
+                        date_value = pd.to_datetime(date_value).date()
+                    except:
+                        date_value = date.today()
+                
                 result = Result(
                     id=max_id + idx + 1,
-                    file_id=row['file_id'],
-                    numorden=str(row['numorden']),
-                    sexo=str(row['sexo']),
-                    edad=int(row['edad']),
-                    nombre=str(row['nombre']),
-                    textores=str(row['textores']),
-                    nombre2=str(row['nombre2']),
-                    date=row['date'] if isinstance(row['date'], date) else pd.to_datetime(row['date']).date(),
+                    file_id=str(row['file_id']),
+                    numorden=str(row['numorden']) if pd.notna(row['numorden']) else '',
+                    sexo=str(row['sexo']) if pd.notna(row['sexo']) else '',
+                    edad=edad_value,
+                    nombre=str(row['nombre']) if pd.notna(row['nombre']) else '',
+                    textores=str(row['textores']) if pd.notna(row['textores']) else '',
+                    nombre2=str(row['nombre2']) if pd.notna(row['nombre2']) else '',
+                    date=date_value,
                     created_at=datetime.utcnow()
                 )
                 results_to_insert.append(result)
@@ -289,8 +309,13 @@ async def get_file_data_from_duckdb(
     Récupérer les données d'un fichier depuis la base de données avec pagination
     """
     try:
+        # Limiter la taille maximale pour éviter les problèmes de mémoire
+        MAX_LIMIT = 100000
+        if limit > MAX_LIMIT:
+            limit = MAX_LIMIT
+        
         # Vérifier si le fichier existe
-        file_stmt = select(File).where(File.file_id == file_id)
+        file_stmt = select(FileModel).where(FileModel.file_id == file_id)
         file_record = session.exec(file_stmt).first()
         
         if not file_record:
@@ -309,28 +334,35 @@ async def get_file_data_from_duckdb(
         # Convertir en format JSON-friendly
         data = []
         for result in results:
-            data.append({
-                "numorden": result.numorden,
-                "sexo": result.sexo,
-                "edad": result.edad,
-                "nombre": result.nombre,
-                "textores": result.textores,
-                "nombre2": result.nombre2,
-                "date": result.date.isoformat() if result.date else None
-            })
+            try:
+                data.append({
+                    "numorden": result.numorden or '',
+                    "sexo": result.sexo or '',
+                    "edad": result.edad if result.edad is not None else 0,
+                    "nombre": result.nombre or '',
+                    "textores": result.textores or '',
+                    "nombre2": result.nombre2 or '',
+                    "date": result.date.isoformat() if result.date else None
+                })
+            except Exception as e:
+                # Skip les lignes avec erreur de conversion
+                print(f"⚠️ Erreur conversion ligne: {e}")
+                continue
         
         return {
             "file_id": file_id,
             "original_filename": file_record.original_filename,
             "total_rows": file_record.row_count,
-            "current_page": offset // limit + 1,
+            "current_page": offset // limit + 1 if limit > 0 else 1,
             "page_size": limit,
             "returned_rows": len(data),
             "data": data
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la récupération des données: {str(e)}")
 
 
 @router.get("/files")
@@ -340,7 +372,7 @@ async def list_uploaded_files(session: Session = Depends(get_session)):
     """
     try:
         # Récupérer tous les fichiers depuis la base de données
-        files_stmt = select(File).order_by(File.upload_timestamp.desc())
+        files_stmt = select(FileModel).order_by(FileModel.upload_timestamp.desc())
         files = session.exec(files_stmt).all()
         
         # Convertir en format JSON-friendly
@@ -391,7 +423,7 @@ async def delete_file(file_id: str, session: Session = Depends(get_session)):
     """
     try:
         # Vérifier que le fichier existe
-        file_stmt = select(File).where(File.file_id == file_id)
+        file_stmt = select(FileModel).where(FileModel.file_id == file_id)
         file_record = session.exec(file_stmt).first()
         
         if not file_record:

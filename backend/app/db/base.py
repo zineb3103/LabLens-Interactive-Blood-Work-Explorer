@@ -2,8 +2,7 @@
 """
 Configuration de la base de données avec SQLAlchemy + SQLModel
 """
-from sqlalchemy import create_engine
-from sqlmodel import SQLModel, Session, create_engine as create_sqlmodel_engine
+from sqlmodel import SQLModel, Session, create_engine
 from pathlib import Path
 
 from ..core.config import settings
@@ -12,12 +11,12 @@ from ..core.config import settings
 settings.DUCKDB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # Créer le moteur SQLAlchemy pour DuckDB
-# DuckDB utilise le format: duckdb:///path/to/file.duckdb
-# Note: SQLModel utilise create_engine de sqlmodel qui est un wrapper autour de SQLAlchemy
-engine = create_sqlmodel_engine(
+# Utilise duckdb-engine qui fournit le dialecte duckdb:// pour SQLAlchemy
+# Format: duckdb:///path/to/file.duckdb
+engine = create_engine(
     f"duckdb:///{settings.DUCKDB_PATH}",
     echo=False,  # Mettre à True pour voir les requêtes SQL générées
-    connect_args={"check_same_thread": False}  # Pour DuckDB
+    pool_pre_ping=True,  # Vérifier la connexion avant utilisation
 )
 
 

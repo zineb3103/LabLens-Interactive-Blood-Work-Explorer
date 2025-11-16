@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 import pandas as pd
 import re
-from sqlmodel import Session, select, or_, and_, col, text
+from sqlmodel import Session, select, or_, and_, text
 from sqlalchemy import text as sql_text
 
 from ..db.base import get_session
