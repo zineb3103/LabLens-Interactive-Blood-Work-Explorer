@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Activity, Upload, Search, Database, BarChart3, MessageSquare, TrendingUp, Users, Shield, CheckCircle2, PlayCircle } from 'lucide-react';
@@ -8,6 +8,9 @@ export default function LabLensHome() {
   const [hoveredNav, setHoveredNav] = useState<string | null>(null);
   const [hoveredTitle, setHoveredTitle] = useState(false);
   const [chatbotOpen, setChatbotOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   return (
     <div className="min-h-screen bg-white">
@@ -83,7 +86,7 @@ export default function LabLensHome() {
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center" style={{
-        backgroundImage: 'url(piw.jpg)',
+        backgroundImage: 'url(lablens.jpg)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed'
@@ -137,16 +140,48 @@ export default function LabLensHome() {
 
             {/* Video Demo */}
             <div className="mt-20 relative">
-              <div className="aspect-video bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl overflow-hidden group cursor-pointer border-4 border-white/20">
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-all duration-300">
-                  <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-2xl">
-                    <PlayCircle className="w-16 h-16 text-cyan-500" />
+              <div className="aspect-video bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl overflow-hidden group border-4 border-white/20 relative">
+                <video
+                  ref={videoRef}
+                  src="/Demo.mp4"
+                  className="w-full h-full object-cover"
+                  controls={isPlaying}
+                  onPlay={() => {
+                    setIsPlaying(true);
+                    setShowOverlay(false);
+                  }}
+                  onPause={() => setIsPlaying(false)}
+                  onEnded={() => {
+                    setIsPlaying(false);
+                    setShowOverlay(true);
+                  }}
+                />
+                
+                {/* Overlay with Play Button */}
+                {showOverlay && (
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-all duration-300 cursor-pointer"
+                    onClick={() => {
+                      if (videoRef.current) {
+                        videoRef.current.play();
+                        setIsPlaying(true);
+                        setShowOverlay(false);
+                      }
+                    }}
+                  >
+                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-2xl">
+                      <PlayCircle className="w-16 h-16 text-cyan-500" />
+                    </div>
                   </div>
-                </div>
-                <div className="absolute bottom-8 left-8 text-white">
-                  <p className="text-3xl font-bold drop-shadow-lg">Démo de la Plateforme</p>
-                  <p className="text-lg text-white/80 mt-2">Découvrez LabLens en action</p>
-                </div>
+                )}
+                
+                {/* Title Overlay */}
+                {showOverlay && (
+                  <div className="absolute bottom-8 left-8 text-white pointer-events-none">
+                    <p className="text-3xl font-bold drop-shadow-lg">Démo de la Plateforme</p>
+                    <p className="text-lg text-white/80 mt-2">Découvrez LabLens en action</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

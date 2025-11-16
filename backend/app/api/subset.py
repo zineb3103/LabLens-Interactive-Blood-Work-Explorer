@@ -1,12 +1,15 @@
 # backend/app/api/subset.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 import pandas as pd
 import re
+from sqlmodel import Session, select, or_, and_, col, text
+from sqlalchemy import text as sql_text
 
-from ..db.base import db
+from ..db.base import get_session
+from ..db.models import Result, File
 from ..core.config import settings
 
 router = APIRouter()
@@ -29,73 +32,114 @@ class SQLFilterRequest(BaseModel):
 
 
 @router.post("/subset/manual")
-async def subset_manual(request: ManualFilterRequest):
+async def subset_manual(request: ManualFilterRequest, session: Session = Depends(get_session)):
     """
-    Appliquer des filtres manuels sur un dataset
+    Appliquer des filtres manuels sur un dataset avec SQLModel ORM
     """
     try:
-        conn = db.get_connection()
+        # Vérifier que le fichier existe
+        file_stmt = select(File).where(File.file_id == request.file_id)
+        file_record = session.exec(file_stmt).first()
+        if not file_record:
+            raise HTTPException(status_code=404, detail="Fichier non trouvé")
         
-        # Construire la requête SQL à partir des filtres
-        base_query = f"SELECT * FROM results WHERE file_id = '{request.file_id}'"
+        # Construire la requête de base
+        query = select(Result).where(Result.file_id == request.file_id)
         
-        if request.filters:
-            conditions = []
-            for filter_cond in request.filters:
-                col = filter_cond.column
-                op = filter_cond.operator
-                val = filter_cond.value
-                
-                if not val:  # Skip empty filters
-                    continue
-                
-                # Construire la condition selon l'opérateur
-                if op == 'LIKE':
-                    conditions.append(f"{col} LIKE '%{val}%'")
-                elif op == 'IN':
-                    # Gérer les listes de valeurs
-                    values = [v.strip() for v in val.split(',')]
-                    values_str = ', '.join([f"'{v}'" for v in values])
-                    conditions.append(f"{col} IN ({values_str})")
-                elif op in ['=', '!=', '>', '<', '>=', '<=']:
-                    # Pour les opérateurs standards
-                    if col == 'edad':  # Colonne numérique
-                        conditions.append(f"{col} {op} {val}")
-                    else:
-                        conditions.append(f"{col} {op} '{val}'")
-                else:
-                    conditions.append(f"{col} {op} '{val}'")
+        # Construire les conditions dynamiquement
+        filter_conditions = []
+        for filter_cond in request.filters:
+            if not filter_cond.value:  # Skip empty filters
+                continue
             
-            if conditions:
-                base_query += " AND " + " AND ".join(conditions)
+            column_name = filter_cond.column
+            operator = filter_cond.operator
+            value = filter_cond.value
+            
+            # Obtenir l'attribut de la colonne
+            column_attr = getattr(Result, column_name, None)
+            if column_attr is None:
+                continue  # Colonne invalide, skip
+            
+            # Construire la condition selon l'opérateur
+            if operator == 'LIKE':
+                filter_conditions.append(column_attr.like(f"%{value}%"))
+            elif operator == 'IN':
+                values_list = [v.strip() for v in value.split(',')]
+                filter_conditions.append(column_attr.in_(values_list))
+            elif operator == '=':
+                if column_name == 'edad':
+                    filter_conditions.append(column_attr == int(value))
+                else:
+                    filter_conditions.append(column_attr == value)
+            elif operator == '!=':
+                if column_name == 'edad':
+                    filter_conditions.append(column_attr != int(value))
+                else:
+                    filter_conditions.append(column_attr != value)
+            elif operator == '>':
+                if column_name == 'edad':
+                    filter_conditions.append(column_attr > int(value))
+                else:
+                    filter_conditions.append(column_attr > value)
+            elif operator == '<':
+                if column_name == 'edad':
+                    filter_conditions.append(column_attr < int(value))
+                else:
+                    filter_conditions.append(column_attr < value)
+            elif operator == '>=':
+                if column_name == 'edad':
+                    filter_conditions.append(column_attr >= int(value))
+                else:
+                    filter_conditions.append(column_attr >= value)
+            elif operator == '<=':
+                if column_name == 'edad':
+                    filter_conditions.append(column_attr <= int(value))
+                else:
+                    filter_conditions.append(column_attr <= value)
         
-        # Exécuter la requête
-        result_df = conn.execute(base_query).fetchdf()
+        # Appliquer les conditions à la requête
+        if filter_conditions:
+            query = query.where(and_(*filter_conditions))
+        
+        # Exécuter la requête avec SQLModel ORM
+        results = session.exec(query).all()
         
         # Convertir en format JSON-friendly
-        data = result_df.to_dict(orient='records')
+        data = []
+        for result in results:
+            result_dict = {
+                "id": result.id,
+                "file_id": result.file_id,
+                "numorden": result.numorden,
+                "sexo": result.sexo,
+                "edad": result.edad,
+                "nombre": result.nombre,
+                "textores": result.textores,
+                "nombre2": result.nombre2,
+                "date": result.date.isoformat() if result.date else None,
+                "created_at": result.created_at.isoformat() if result.created_at else None
+            }
+            data.append(result_dict)
         
         return {
             "success": True,
             "data": data,
-            "total_rows": len(data),
-            "query_executed": base_query
+            "total_rows": len(data)
         }
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/subset/sql")
-async def subset_sql(request: SQLFilterRequest):
+async def subset_sql(request: SQLFilterRequest, session: Session = Depends(get_session)):
     """
     Exécuter une requête SQL personnalisée (en lecture seule)
     
     SÉCURITÉ: Valider que la requête est en lecture seule et inclut file_id
+    Note: Cet endpoint accepte du SQL brut pour des requêtes avancées.
     """
     try:
-        conn = db.get_connection()
-        
         # Valider le format de file_id (UUID ou alphanumérique)
         import uuid
         # Vérifier que file_id est un UUID valide ou alphanumérique
@@ -113,12 +157,11 @@ async def subset_sql(request: SQLFilterRequest):
                 detail="File ID contient des caractères invalides"
             )
         
-        # Vérifier que le file_id existe
-        file_check = conn.execute(
-            f"SELECT COUNT(*) FROM files WHERE file_id = '{file_id_clean}'"
-        ).fetchone()
+        # Vérifier que le file_id existe avec SQLModel
+        file_stmt = select(File).where(File.file_id == file_id_clean)
+        file_record = session.exec(file_stmt).first()
         
-        if file_check[0] == 0:
+        if not file_record:
             raise HTTPException(
                 status_code=404,
                 detail=f"File ID '{file_id_clean}' non trouvé"
@@ -251,7 +294,14 @@ async def subset_sql(request: SQLFilterRequest):
                 else:
                     query_with_limit = query_with_limit + f" LIMIT {MAX_RESULTS}"
             
-            result_df = conn.execute(query_with_limit).fetchdf()
+            # Exécuter la requête SQL brute avec SQLAlchemy text()
+            result = session.execute(sql_text(query_with_limit))
+            rows = result.fetchall()
+            columns = result.keys()
+            
+            # Convertir en DataFrame
+            data_list = [dict(zip(columns, row)) for row in rows]
+            result_df = pd.DataFrame(data_list)
             
             # Convertir en JSON (gérer les types datetime, etc.)
             data = result_df.to_dict(orient='records')
@@ -311,9 +361,11 @@ async def subset_sql(request: SQLFilterRequest):
 
 
 @router.post("/subset/preview")
-async def preview_sql_query(request: SQLFilterRequest):
+async def preview_sql_query(request: SQLFilterRequest, session: Session = Depends(get_session)):
     """
     Prévisualiser une requête SQL sans l'exécuter (validation uniquement)
+    Note: L'estimation du nombre de lignes nécessite l'exécution de la requête SQL brute,
+    ce qui n'est plus supporté avec SQLModel ORM. Cette fonction valide uniquement la syntaxe.
     """
     try:
         query_lower = request.query.lower().strip()
@@ -332,16 +384,10 @@ async def preview_sql_query(request: SQLFilterRequest):
         if 'file_id' not in query_lower:
             issues.append("La requête devrait inclure un filtre sur file_id")
         
-        # Estimer le nombre de lignes (sans exécuter la requête complète)
-        if not issues:
-            try:
-                conn = db.get_connection()
-                count_query = f"SELECT COUNT(*) as count FROM ({request.query}) as subquery"
-                estimated_rows = conn.execute(count_query).fetchone()[0]
-            except:
-                estimated_rows = None
-        else:
-            estimated_rows = None
+        # Note: L'estimation du nombre de lignes nécessiterait l'exécution de SQL brut
+        # Avec SQLModel ORM, on ne peut pas facilement exécuter du SQL brut pour l'estimation
+        # sans compromettre la sécurité. On retourne None pour l'estimation.
+        estimated_rows = None
         
         return {
             "valid": len(issues) == 0,

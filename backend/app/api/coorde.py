@@ -1,15 +1,17 @@
-# backend/app/api/coorder.py
-from fastapi import APIRouter, HTTPException
+# backend/app/api/coorde.py
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 import pandas as pd
+from sqlmodel import Session, select
 
-from ..db.base import db
+from ..db.base import get_session
+from ..db.models import Result, File
 
 router = APIRouter()
 
 
-@router.get("/coorder/{file_id}")
-async def analyze_coorder(file_id: str, top_n: int = 50):
+@router.get("/coorde/{file_id}")
+async def analyze_coorde(file_id: str, top_n: int = 50, session: Session = Depends(get_session)):
     """
     Analyser le co-ordonnancement:
     - Paires de tests ordonnés le même jour
@@ -17,15 +19,33 @@ async def analyze_coorder(file_id: str, top_n: int = 50):
     - Analyse par service
     """
     try:
-        conn = db.get_connection()
+        # Vérifier que le fichier existe
+        file_stmt = select(File).where(File.file_id == file_id)
+        file_record = session.exec(file_stmt).first()
+        if not file_record:
+            raise HTTPException(status_code=404, detail="Fichier non trouvé")
         
-        query = f"""
-            SELECT numorden, nombre, nombre2, date
-            FROM results 
-            WHERE file_id = '{file_id}'
-            ORDER BY numorden, date
-        """
-        df = conn.execute(query).fetchdf()
+        # Charger les données avec SQLModel
+        results_stmt = (
+            select(Result)
+            .where(Result.file_id == file_id)
+            .order_by(Result.numorden, Result.date)
+        )
+        results = session.exec(results_stmt).all()
+        
+        if not results:
+            raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
+        
+        # Convertir en DataFrame
+        data_list = []
+        for result in results:
+            data_list.append({
+                "numorden": result.numorden,
+                "nombre": result.nombre,
+                "nombre2": result.nombre2,
+                "date": result.date.isoformat() if result.date else None
+            })
+        df = pd.DataFrame(data_list)
         
         if len(df) == 0:
             raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
@@ -48,8 +68,8 @@ async def analyze_coorder(file_id: str, top_n: int = 50):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/coorder/{file_id}/matrix")
-async def get_coorder_matrix(file_id: str, tests: str = None):
+@router.get("/coorde/{file_id}/matrix")
+async def get_coorde_matrix(file_id: str, tests: str = None, session: Session = Depends(get_session)):
     """
     Obtenir une matrice de co-occurrence pour visualisation (heatmap)
     
@@ -57,14 +77,28 @@ async def get_coorder_matrix(file_id: str, tests: str = None):
         tests: Liste de tests séparés par des virgules (optionnel)
     """
     try:
-        conn = db.get_connection()
+        # Vérifier que le fichier existe
+        file_stmt = select(File).where(File.file_id == file_id)
+        file_record = session.exec(file_stmt).first()
+        if not file_record:
+            raise HTTPException(status_code=404, detail="Fichier non trouvé")
         
-        query = f"""
-            SELECT numorden, nombre, date
-            FROM results 
-            WHERE file_id = '{file_id}'
-        """
-        df = conn.execute(query).fetchdf()
+        # Charger les données avec SQLModel
+        results_stmt = select(Result).where(Result.file_id == file_id)
+        results = session.exec(results_stmt).all()
+        
+        if not results:
+            raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
+        
+        # Convertir en DataFrame
+        data_list = []
+        for result in results:
+            data_list.append({
+                "numorden": result.numorden,
+                "nombre": result.nombre,
+                "date": result.date.isoformat() if result.date else None
+            })
+        df = pd.DataFrame(data_list)
         
         if len(df) == 0:
             raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
@@ -87,21 +121,39 @@ async def get_coorder_matrix(file_id: str, tests: str = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/coorder/{file_id}/service/{service_name}")
-async def get_coorder_by_service(file_id: str, service_name: str):
+@router.get("/coorde/{file_id}/service/{service_name}")
+async def get_coorde_by_service(file_id: str, service_name: str, session: Session = Depends(get_session)):
     """
     Analyser le co-ordonnancement pour un service spécifique
     """
     try:
-        conn = db.get_connection()
+        # Vérifier que le fichier existe
+        file_stmt = select(File).where(File.file_id == file_id)
+        file_record = session.exec(file_stmt).first()
+        if not file_record:
+            raise HTTPException(status_code=404, detail="Fichier non trouvé")
         
-        query = f"""
-            SELECT numorden, nombre, date
-            FROM results 
-            WHERE file_id = '{file_id}' AND nombre2 = '{service_name}'
-            ORDER BY numorden, date
-        """
-        df = conn.execute(query).fetchdf()
+        # Charger les données avec SQLModel
+        results_stmt = (
+            select(Result)
+            .where(Result.file_id == file_id)
+            .where(Result.nombre2 == service_name)
+            .order_by(Result.numorden, Result.date)
+        )
+        results = session.exec(results_stmt).all()
+        
+        if not results:
+            raise HTTPException(status_code=404, detail="Service non trouvé")
+        
+        # Convertir en DataFrame
+        data_list = []
+        for result in results:
+            data_list.append({
+                "numorden": result.numorden,
+                "nombre": result.nombre,
+                "date": result.date.isoformat() if result.date else None
+            })
+        df = pd.DataFrame(data_list)
         
         if len(df) == 0:
             raise HTTPException(status_code=404, detail="Service non trouvé")

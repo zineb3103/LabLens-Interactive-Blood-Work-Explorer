@@ -1,16 +1,18 @@
 # backend/app/api/panels.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, List
 import pandas as pd
+from sqlmodel import Session, select
 
-from ..db.base import db
+from ..db.base import get_session
+from ..db.models import Result, File
 from ..services.panel_engine import PanelEngine
 
 router = APIRouter()
 
 
 @router.get("/panels/{file_id}")
-async def analyze_panels(file_id: str):
+async def analyze_panels(file_id: str, session: Session = Depends(get_session)):
     """
     Analyser les panels de tests:
     - Nombre de tests par patient par jour
@@ -18,19 +20,32 @@ async def analyze_panels(file_id: str):
     - Panels les plus fréquents
     """
     try:
-        conn = db.get_connection()
+        # Vérifier que le fichier existe
+        file_stmt = select(File).where(File.file_id == file_id)
+        file_record = session.exec(file_stmt).first()
+        if not file_record:
+            raise HTTPException(status_code=404, detail="Fichier non trouvé")
         
-        # Charger les données
-        query = f"""
-            SELECT numorden, nombre, date 
-            FROM results 
-            WHERE file_id = '{file_id}'
-            ORDER BY numorden, date
-        """
-        df = conn.execute(query).fetchdf()
+        # Charger les données avec SQLModel
+        results_stmt = (
+            select(Result)
+            .where(Result.file_id == file_id)
+            .order_by(Result.numorden, Result.date)
+        )
+        results = session.exec(results_stmt).all()
         
-        if len(df) == 0:
+        if not results:
             raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
+        
+        # Convertir en DataFrame
+        data_list = []
+        for result in results:
+            data_list.append({
+                "numorden": result.numorden,
+                "nombre": result.nombre,
+                "date": result.date.isoformat() if result.date else None
+            })
+        df = pd.DataFrame(data_list)
         
         # Utiliser le service d'analyse de panels
         panel_engine = PanelEngine(df)
@@ -48,20 +63,32 @@ async def analyze_panels(file_id: str):
 
 
 @router.get("/panels/{file_id}/patient/{numorden}")
-async def get_patient_panels(file_id: str, numorden: str):
+async def get_patient_panels(file_id: str, numorden: str, session: Session = Depends(get_session)):
     """
     Obtenir l'historique des panels pour un patient spécifique
     """
     try:
-        conn = db.get_connection()
+        # Charger les données avec SQLModel
+        results_stmt = (
+            select(Result)
+            .where(Result.file_id == file_id)
+            .where(Result.numorden == numorden)
+            .order_by(Result.date, Result.nombre)
+        )
+        results = session.exec(results_stmt).all()
         
-        query = f"""
-            SELECT date, nombre, textores
-            FROM results 
-            WHERE file_id = '{file_id}' AND numorden = '{numorden}'
-            ORDER BY date, nombre
-        """
-        df = conn.execute(query).fetchdf()
+        if not results:
+            raise HTTPException(status_code=404, detail="Patient non trouvé")
+        
+        # Convertir en DataFrame
+        data_list = []
+        for result in results:
+            data_list.append({
+                "date": result.date.isoformat() if result.date else None,
+                "nombre": result.nombre,
+                "textores": result.textores
+            })
+        df = pd.DataFrame(data_list)
         
         if len(df) == 0:
             raise HTTPException(status_code=404, detail="Patient non trouvé")
@@ -91,20 +118,37 @@ async def get_patient_panels(file_id: str, numorden: str):
 
 
 @router.get("/panels/{file_id}/top")
-async def get_top_panels(file_id: str, limit: int = 10):
+async def get_top_panels(file_id: str, limit: int = 10, session: Session = Depends(get_session)):
     """
     Obtenir les combinaisons de tests les plus fréquentes
     """
     try:
-        conn = db.get_connection()
+        # Vérifier que le fichier existe
+        file_stmt = select(File).where(File.file_id == file_id)
+        file_record = session.exec(file_stmt).first()
+        if not file_record:
+            raise HTTPException(status_code=404, detail="Fichier non trouvé")
         
-        query = f"""
-            SELECT numorden, date, nombre
-            FROM results 
-            WHERE file_id = '{file_id}'
-            ORDER BY numorden, date
-        """
-        df = conn.execute(query).fetchdf()
+        # Charger les données avec SQLModel
+        results_stmt = (
+            select(Result)
+            .where(Result.file_id == file_id)
+            .order_by(Result.numorden, Result.date)
+        )
+        results = session.exec(results_stmt).all()
+        
+        if not results:
+            raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
+        
+        # Convertir en DataFrame
+        data_list = []
+        for result in results:
+            data_list.append({
+                "numorden": result.numorden,
+                "date": result.date.isoformat() if result.date else None,
+                "nombre": result.nombre
+            })
+        df = pd.DataFrame(data_list)
         
         if len(df) == 0:
             raise HTTPException(status_code=404, detail="Aucune donnée trouvée")

@@ -1,12 +1,14 @@
 # backend/app/api/views.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import json
 import uuid
 from datetime import datetime
+from sqlmodel import Session, select
 
-from ..db.base import db
+from ..db.base import get_session
+from ..db.models import View, File, Result
 
 router = APIRouter()
 
@@ -31,42 +33,32 @@ class UpdateViewRequest(BaseModel):
 
 
 @router.post("/views")
-async def create_view(request: CreateViewRequest):
+async def create_view(request: CreateViewRequest, session: Session = Depends(get_session)):
     """
     Créer une nouvelle vue (cohort) sauvegardée
     """
     try:
-        conn = db.get_connection()
+        # Vérifier que le fichier existe
+        file_stmt = select(File).where(File.file_id == request.file_id)
+        file_record = session.exec(file_stmt).first()
+        if not file_record:
+            raise HTTPException(status_code=404, detail="Fichier non trouvé")
         
-        # Créer la table views si elle n'existe pas
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS views (
-                view_id VARCHAR PRIMARY KEY,
-                name VARCHAR NOT NULL,
-                file_id VARCHAR NOT NULL,
-                filters TEXT,
-                description TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # Générer un ID unique
-        view_id = str(uuid.uuid4())
-        
-        # Sérialiser les filtres en JSON
-        filters_json = json.dumps([f.dict() for f in request.filters])
-        
-        # Insérer la vue
-        conn.execute("""
-            INSERT INTO views (view_id, name, file_id, filters, description)
-            VALUES (?, ?, ?, ?, ?)
-        """, [view_id, request.name, request.file_id, filters_json, request.description])
+        # Créer la vue
+        view_record = View(
+            view_id=str(uuid.uuid4()),
+            name=request.name,
+            file_id=request.file_id,
+            filters=json.dumps([f.dict() for f in request.filters]),
+            description=request.description
+        )
+        session.add(view_record)
+        session.commit()
         
         return {
             "success": True,
-            "view_id": view_id,
-            "name": request.name,
+            "view_id": view_record.view_id,
+            "name": view_record.name,
             "message": "Vue créée avec succès"
         }
         
@@ -75,74 +67,69 @@ async def create_view(request: CreateViewRequest):
 
 
 @router.get("/views")
-async def list_views(file_id: Optional[str] = None):
+async def list_views(file_id: Optional[str] = None, session: Session = Depends(get_session)):
     """
     Lister toutes les vues sauvegardées (optionnellement filtrées par file_id)
     """
     try:
-        conn = db.get_connection()
+        # Construire la requête
+        if file_id:
+            views_stmt = select(View).where(View.file_id == file_id).order_by(View.created_at.desc())
+        else:
+            views_stmt = select(View).order_by(View.created_at.desc())
         
-        # Vérifier si la table existe
-        try:
-            if file_id:
-                query = "SELECT * FROM views WHERE file_id = ? ORDER BY created_at DESC"
-                result = conn.execute(query, [file_id]).fetchdf()
-            else:
-                query = "SELECT * FROM views ORDER BY created_at DESC"
-                result = conn.execute(query).fetchdf()
-            
-            # Convertir en liste de dictionnaires
-            views = result.to_dict(orient='records')
-            
-            # Parser les filtres JSON
-            for view in views:
-                if view.get('filters'):
-                    view['filters'] = json.loads(view['filters'])
-            
-            return {
-                "success": True,
-                "total": len(views),
-                "views": views
+        views = session.exec(views_stmt).all()
+        
+        # Convertir en format JSON
+        views_list = []
+        for view in views:
+            view_dict = {
+                "view_id": view.view_id,
+                "name": view.name,
+                "file_id": view.file_id,
+                "filters": json.loads(view.filters) if view.filters else [],
+                "description": view.description,
+                "created_at": view.created_at.isoformat() if view.created_at else None,
+                "updated_at": view.updated_at.isoformat() if view.updated_at else None
             }
-            
-        except:
-            # Table n'existe pas encore
-            return {
-                "success": True,
-                "total": 0,
-                "views": []
-            }
+            views_list.append(view_dict)
+        
+        return {
+            "success": True,
+            "total": len(views_list),
+            "views": views_list
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/views/{view_id}")
-async def get_view(view_id: str):
+async def get_view(view_id: str, session: Session = Depends(get_session)):
     """
     Obtenir les détails d'une vue spécifique
     """
     try:
-        conn = db.get_connection()
+        view_stmt = select(View).where(View.view_id == view_id)
+        view = session.exec(view_stmt).first()
         
-        result = conn.execute("""
-            SELECT * FROM views WHERE view_id = ?
-        """, [view_id]).fetchone()
-        
-        if not result:
+        if not view:
             raise HTTPException(status_code=404, detail="Vue non trouvée")
         
         # Convertir en dictionnaire
-        columns = ['view_id', 'name', 'file_id', 'filters', 'description', 'created_at', 'updated_at']
-        view = dict(zip(columns, result))
-        
-        # Parser les filtres JSON
-        if view.get('filters'):
-            view['filters'] = json.loads(view['filters'])
+        view_dict = {
+            "view_id": view.view_id,
+            "name": view.name,
+            "file_id": view.file_id,
+            "filters": json.loads(view.filters) if view.filters else [],
+            "description": view.description,
+            "created_at": view.created_at.isoformat() if view.created_at else None,
+            "updated_at": view.updated_at.isoformat() if view.updated_at else None
+        }
         
         return {
             "success": True,
-            "view": view
+            "view": view_dict
         }
         
     except HTTPException:
@@ -152,40 +139,32 @@ async def get_view(view_id: str):
 
 
 @router.put("/views/{view_id}")
-async def update_view(view_id: str, request: UpdateViewRequest):
+async def update_view(view_id: str, request: UpdateViewRequest, session: Session = Depends(get_session)):
     """
     Mettre à jour une vue existante
     """
     try:
-        conn = db.get_connection()
-        
         # Vérifier que la vue existe
-        existing = conn.execute("SELECT * FROM views WHERE view_id = ?", [view_id]).fetchone()
-        if not existing:
+        view_stmt = select(View).where(View.view_id == view_id)
+        view = session.exec(view_stmt).first()
+        
+        if not view:
             raise HTTPException(status_code=404, detail="Vue non trouvée")
         
-        # Construire la requête de mise à jour
-        updates = []
-        params = []
-        
+        # Mettre à jour les champs
         if request.name is not None:
-            updates.append("name = ?")
-            params.append(request.name)
+            view.name = request.name
         
         if request.filters is not None:
-            updates.append("filters = ?")
-            params.append(json.dumps([f.dict() for f in request.filters]))
+            view.filters = json.dumps([f.dict() for f in request.filters])
         
         if request.description is not None:
-            updates.append("description = ?")
-            params.append(request.description)
+            view.description = request.description
         
-        if updates:
-            updates.append("updated_at = CURRENT_TIMESTAMP")
-            params.append(view_id)
-            
-            query = f"UPDATE views SET {', '.join(updates)} WHERE view_id = ?"
-            conn.execute(query, params)
+        view.updated_at = datetime.utcnow()
+        
+        session.add(view)
+        session.commit()
         
         return {
             "success": True,
@@ -196,24 +175,26 @@ async def update_view(view_id: str, request: UpdateViewRequest):
     except HTTPException:
         raise
     except Exception as e:
+        session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/views/{view_id}")
-async def delete_view(view_id: str):
+async def delete_view(view_id: str, session: Session = Depends(get_session)):
     """
     Supprimer une vue
     """
     try:
-        conn = db.get_connection()
-        
         # Vérifier que la vue existe
-        existing = conn.execute("SELECT * FROM views WHERE view_id = ?", [view_id]).fetchone()
-        if not existing:
+        view_stmt = select(View).where(View.view_id == view_id)
+        view = session.exec(view_stmt).first()
+        
+        if not view:
             raise HTTPException(status_code=404, detail="Vue non trouvée")
         
         # Supprimer la vue
-        conn.execute("DELETE FROM views WHERE view_id = ?", [view_id])
+        session.delete(view)
+        session.commit()
         
         return {
             "success": True,
@@ -224,31 +205,31 @@ async def delete_view(view_id: str):
     except HTTPException:
         raise
     except Exception as e:
+        session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/views/{view_id}/apply")
-async def apply_view(view_id: str):
+async def apply_view(view_id: str, session: Session = Depends(get_session)):
     """
     Appliquer une vue sauvegardée et retourner les données filtrées
     """
     try:
-        conn = db.get_connection()
-        
         # Récupérer la vue
-        result = conn.execute("""
-            SELECT file_id, filters FROM views WHERE view_id = ?
-        """, [view_id]).fetchone()
+        view_stmt = select(View).where(View.view_id == view_id)
+        view = session.exec(view_stmt).first()
         
-        if not result:
+        if not view:
             raise HTTPException(status_code=404, detail="Vue non trouvée")
         
-        file_id, filters_json = result
-        filters = json.loads(filters_json)
+        filters = json.loads(view.filters) if view.filters else []
         
-        # Construire la requête SQL
-        base_query = f"SELECT * FROM results WHERE file_id = '{file_id}'"
+        # Construire la requête avec SQLModel
+        query = select(Result).where(Result.file_id == view.file_id)
         
+        # Appliquer les filtres (similaire à subset_manual)
+        from sqlmodel import and_, or_
+
         if filters:
             conditions = []
             for filter_cond in filters:
@@ -259,28 +240,70 @@ async def apply_view(view_id: str):
                 if not val:
                     continue
                 
+                column_attr = getattr(Result, col, None)
+                if column_attr is None:
+                    continue
+                
                 if op == 'LIKE':
-                    conditions.append(f"{col} LIKE '%{val}%'")
+                    conditions.append(column_attr.like(f'%{val}%'))
                 elif op == 'IN':
                     values = [v.strip() for v in val.split(',')]
-                    values_str = ', '.join([f"'{v}'" for v in values])
-                    conditions.append(f"{col} IN ({values_str})")
-                elif col == 'edad':
-                    conditions.append(f"{col} {op} {val}")
-                else:
-                    conditions.append(f"{col} {op} '{val}'")
+                    conditions.append(column_attr.in_(values))
+                elif op == '=':
+                    if col == 'edad':
+                        conditions.append(column_attr == int(val))
+                    else:
+                        conditions.append(column_attr == val)
+                elif op == '!=':
+                    if col == 'edad':
+                        conditions.append(column_attr != int(val))
+                    else:
+                        conditions.append(column_attr != val)
+                elif op == '>':
+                    if col == 'edad':
+                        conditions.append(column_attr > int(val))
+                    else:
+                        conditions.append(column_attr > val)
+                elif op == '<':
+                    if col == 'edad':
+                        conditions.append(column_attr < int(val))
+                    else:
+                        conditions.append(column_attr < val)
+                elif op == '>=':
+                    if col == 'edad':
+                        conditions.append(column_attr >= int(val))
+                    else:
+                        conditions.append(column_attr >= val)
+                elif op == '<=':
+                    if col == 'edad':
+                        conditions.append(column_attr <= int(val))
+                    else:
+                        conditions.append(column_attr <= val)
             
-            if conditions:
-                base_query += " AND " + " AND ".join(conditions)
+            query = query.where(and_(*conditions))
         
-        # Exécuter la requête
-        result_df = conn.execute(base_query).fetchdf()
-        data = result_df.to_dict(orient='records')
+        results = session.exec(query).all()
+        
+        # Convertir en format JSON-friendly
+        data = []
+        for result in results:
+            data.append({
+                "id": result.id,
+                "file_id": result.file_id,
+                "numorden": result.numorden,
+                "sexo": result.sexo,
+                "edad": result.edad,
+                "nombre": result.nombre,
+                "textores": result.textores,
+                "nombre2": result.nombre2,
+                "date": result.date.isoformat() if result.date else None,
+                "created_at": result.created_at.isoformat() if result.created_at else None
+            })
         
         return {
             "success": True,
             "view_id": view_id,
-            "file_id": file_id,
+            "file_id": view.file_id,
             "total_rows": len(data),
             "data": data
         }
@@ -288,20 +311,20 @@ async def apply_view(view_id: str):
     except HTTPException:
         raise
     except Exception as e:
+        session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/views/{view_id}/share")
-async def get_shareable_link(view_id: str):
+async def get_shareable_link(view_id: str, session: Session = Depends(get_session)):
     """
     Générer un lien partageable pour une vue
     """
     try:
-        conn = db.get_connection()
-        
         # Vérifier que la vue existe
-        result = conn.execute("SELECT name FROM views WHERE view_id = ?", [view_id]).fetchone()
-        if not result:
+        view_stmt = select(View).where(View.view_id == view_id)
+        view = session.exec(view_stmt).first()
+        if not view:
             raise HTTPException(status_code=404, detail="Vue non trouvée")
         
         # Générer le lien (à adapter selon votre domaine)
@@ -310,7 +333,7 @@ async def get_shareable_link(view_id: str):
         return {
             "success": True,
             "view_id": view_id,
-            "view_name": result[0],
+            "view_name": view.name,
             "share_link": share_link
         }
         

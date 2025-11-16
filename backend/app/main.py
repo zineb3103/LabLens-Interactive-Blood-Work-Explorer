@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from .api import ingest, subset, stats, panels, repeats, coorder, views
-from .db.base import db
+from .db.base import init_db
 from .core.config import settings
 
 
@@ -23,13 +23,12 @@ async def lifespan(app: FastAPI):
     settings.PARQUET_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     print(f"✅ Répertoires créés: {settings.DATA_DIR}")
     
-    # Initialiser DuckDB (déjà fait dans le constructeur)
+    # Initialiser la base de données avec SQLModel
     try:
-        conn = db.get_connection()
-        conn.execute("SELECT 1").fetchone()
-        print("✅ DuckDB initialisé et prêt")
+        init_db()
+        print("✅ Base de données initialisée et prête")
     except Exception as e:
-        print(f"⚠️ Erreur DuckDB: {e}")
+        print(f"⚠️ Erreur base de données: {e}")
     
     print("✅ LabLens API prête!\n")
     
@@ -38,10 +37,10 @@ async def lifespan(app: FastAPI):
     # ========== SHUTDOWN ==========
     print("\n🛑 Arrêt de LabLens API...")
     
-    # Fermer proprement la connexion DuckDB
+    # Fermer proprement la connexion à la base de données
     try:
-        db.close()
-        print("✅ DuckDB fermé proprement")
+        # SQLModel/SQLAlchemy gère automatiquement la fermeture
+        print("✅ Base de données fermée proprement")
     except Exception as e:
         print(f"⚠️ Erreur lors de la fermeture: {e}")
     
@@ -149,29 +148,31 @@ async def health_check():
         "components": {}
     }
     
-    # Tester DuckDB
+    # Tester la base de données
     try:
-        conn = db.get_connection()
-        result = conn.execute("SELECT 1").fetchone()
+        from sqlmodel import Session, select, func
+        from .db.base import engine
+        from .db.models import File, Result, View
         
-        # Compter les fichiers et résultats
-        files_count = conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
-        results_count = conn.execute("SELECT COUNT(*) FROM results").fetchone()[0]
-        
-        # Compter les vues
-        try:
-            views_count = conn.execute("SELECT COUNT(*) FROM views").fetchone()[0]
-        except:
-            views_count = 0
-        
-        health_status["components"]["duckdb"] = {
-            "status": "healthy",
-            "files": files_count,
-            "results": results_count,
-            "views": views_count
-        }
+        with Session(engine) as session:
+            # Compter les fichiers et résultats
+            files_count = session.exec(select(func.count(File.file_id))).one()
+            results_count = session.exec(select(func.count(Result.id))).one()
+            
+            # Compter les vues
+            try:
+                views_count = session.exec(select(func.count(View.view_id))).one()
+            except:
+                views_count = 0
+            
+            health_status["components"]["database"] = {
+                "status": "healthy",
+                "files": files_count,
+                "results": results_count,
+                "views": views_count
+            }
     except Exception as e:
-        health_status["components"]["duckdb"] = {
+        health_status["components"]["database"] = {
             "status": "error",
             "error": str(e)
         }

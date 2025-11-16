@@ -1,11 +1,13 @@
 # backend/app/api/stats.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 from pydantic import BaseModel
 import pandas as pd
 import numpy as np
+from sqlmodel import Session, select
 
-from ..db.base import db
+from ..db.base import get_session
+from ..db.models import Result, File
 from ..services.stats_engine import StatsEngine
 
 router = APIRouter()
@@ -17,7 +19,7 @@ class StatsRequest(BaseModel):
 
 
 @router.post("/stats/summary")
-async def compute_summary_stats(request: StatsRequest):
+async def compute_summary_stats(request: StatsRequest, session: Session = Depends(get_session)):
     """
     Calculer les statistiques descriptives pour un fichier
     
@@ -27,14 +29,32 @@ async def compute_summary_stats(request: StatsRequest):
     - Missingness par colonne
     """
     try:
-        conn = db.get_connection()
+        # Vérifier que le fichier existe
+        file_stmt = select(File).where(File.file_id == request.file_id)
+        file_record = session.exec(file_stmt).first()
+        if not file_record:
+            raise HTTPException(status_code=404, detail="Fichier non trouvé")
         
-        # Charger les données
-        query = f"SELECT * FROM results WHERE file_id = '{request.file_id}'"
-        df = conn.execute(query).fetchdf()
+        # Charger les données avec SQLModel
+        results_stmt = select(Result).where(Result.file_id == request.file_id)
+        results = session.exec(results_stmt).all()
         
-        if len(df) == 0:
+        if not results:
             raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
+        
+        # Convertir en DataFrame pour le service de statistiques
+        data_list = []
+        for result in results:
+            data_list.append({
+                "numorden": result.numorden,
+                "sexo": result.sexo,
+                "edad": result.edad,
+                "nombre": result.nombre,
+                "textores": result.textores,
+                "nombre2": result.nombre2,
+                "date": result.date.isoformat() if result.date else None
+            })
+        df = pd.DataFrame(data_list)
         
         # Utiliser le service de statistiques
         stats_engine = StatsEngine(df)
@@ -47,20 +67,38 @@ async def compute_summary_stats(request: StatsRequest):
             "summary": summary
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/stats/{file_id}/column/{column_name}")
-async def get_column_stats(file_id: str, column_name: str):
+async def get_column_stats(file_id: str, column_name: str, session: Session = Depends(get_session)):
     """
     Obtenir les statistiques détaillées pour une colonne spécifique
     """
     try:
-        conn = db.get_connection()
+        # Vérifier que le fichier existe
+        file_stmt = select(File).where(File.file_id == file_id)
+        file_record = session.exec(file_stmt).first()
+        if not file_record:
+            raise HTTPException(status_code=404, detail="Fichier non trouvé")
         
-        query = f"SELECT {column_name} FROM results WHERE file_id = '{file_id}'"
-        df = conn.execute(query).fetchdf()
+        # Charger les données avec SQLModel
+        results_stmt = select(Result).where(Result.file_id == file_id)
+        results = session.exec(results_stmt).all()
+        
+        if not results:
+            raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
+        
+        # Convertir en DataFrame
+        data_list = []
+        for result in results:
+            data_list.append({
+                column_name: getattr(result, column_name, None)
+            })
+        df = pd.DataFrame(data_list)
         
         if len(df) == 0:
             raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
@@ -112,15 +150,37 @@ async def get_column_stats(file_id: str, column_name: str):
 
 
 @router.get("/stats/{file_id}/missing")
-async def get_missing_summary(file_id: str):
+async def get_missing_summary(file_id: str, session: Session = Depends(get_session)):
     """
     Obtenir un résumé des valeurs manquantes par colonne
     """
     try:
-        conn = db.get_connection()
+        # Vérifier que le fichier existe
+        file_stmt = select(File).where(File.file_id == file_id)
+        file_record = session.exec(file_stmt).first()
+        if not file_record:
+            raise HTTPException(status_code=404, detail="Fichier non trouvé")
         
-        query = f"SELECT * FROM results WHERE file_id = '{file_id}'"
-        df = conn.execute(query).fetchdf()
+        # Charger les données avec SQLModel
+        results_stmt = select(Result).where(Result.file_id == file_id)
+        results = session.exec(results_stmt).all()
+        
+        if not results:
+            raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
+        
+        # Convertir en DataFrame
+        data_list = []
+        for result in results:
+            data_list.append({
+                "numorden": result.numorden,
+                "sexo": result.sexo,
+                "edad": result.edad,
+                "nombre": result.nombre,
+                "textores": result.textores,
+                "nombre2": result.nombre2,
+                "date": result.date.isoformat() if result.date else None
+            })
+        df = pd.DataFrame(data_list)
         
         if len(df) == 0:
             raise HTTPException(status_code=404, detail="Aucune donnée trouvée")

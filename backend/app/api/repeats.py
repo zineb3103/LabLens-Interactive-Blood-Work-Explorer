@@ -1,15 +1,17 @@
 # backend/app/api/repeats.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 import pandas as pd
+from sqlmodel import Session, select
 
-from ..db.base import db
+from ..db.base import get_session
+from ..db.models import Result, File
 from ..services.repeat_engine import RepeatEngine
 
 router = APIRouter()
 
 
 @router.get("/repeats/{file_id}")
-async def analyze_repeats(file_id: str):
+async def analyze_repeats(file_id: str, session: Session = Depends(get_session)):
     """
     Analyser les tests répétés:
     - Nombre de patients avec des tests répétés
@@ -18,15 +20,33 @@ async def analyze_repeats(file_id: str):
     - Intervalles entre répétitions
     """
     try:
-        conn = db.get_connection()
+        # Vérifier que le fichier existe
+        file_stmt = select(File).where(File.file_id == file_id)
+        file_record = session.exec(file_stmt).first()
+        if not file_record:
+            raise HTTPException(status_code=404, detail="Fichier non trouvé")
         
-        query = f"""
-            SELECT numorden, nombre, date, textores
-            FROM results 
-            WHERE file_id = '{file_id}'
-            ORDER BY numorden, nombre, date
-        """
-        df = conn.execute(query).fetchdf()
+        # Charger les données avec SQLModel
+        results_stmt = (
+            select(Result)
+            .where(Result.file_id == file_id)
+            .order_by(Result.numorden, Result.nombre, Result.date)
+        )
+        results = session.exec(results_stmt).all()
+        
+        if not results:
+            raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
+        
+        # Convertir en DataFrame
+        data_list = []
+        for result in results:
+            data_list.append({
+                "numorden": result.numorden,
+                "nombre": result.nombre,
+                "date": result.date.isoformat() if result.date else None,
+                "textores": result.textores
+            })
+        df = pd.DataFrame(data_list)
         
         if len(df) == 0:
             raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
@@ -47,20 +67,32 @@ async def analyze_repeats(file_id: str):
 
 
 @router.get("/repeats/{file_id}/test/{test_name}")
-async def get_test_repeat_history(file_id: str, test_name: str):
+async def get_test_repeat_history(file_id: str, test_name: str, session: Session = Depends(get_session)):
     """
     Obtenir l'historique de répétition pour un test spécifique
     """
     try:
-        conn = db.get_connection()
+        # Charger les données avec SQLModel
+        results_stmt = (
+            select(Result)
+            .where(Result.file_id == file_id)
+            .where(Result.nombre == test_name)
+            .order_by(Result.numorden, Result.date)
+        )
+        results = session.exec(results_stmt).all()
         
-        query = f"""
-            SELECT numorden, date, textores
-            FROM results 
-            WHERE file_id = '{file_id}' AND nombre = '{test_name}'
-            ORDER BY numorden, date
-        """
-        df = conn.execute(query).fetchdf()
+        if not results:
+            raise HTTPException(status_code=404, detail="Test non trouvé")
+        
+        # Convertir en DataFrame
+        data_list = []
+        for result in results:
+            data_list.append({
+                "numorden": result.numorden,
+                "date": result.date.isoformat() if result.date else None,
+                "textores": result.textores
+            })
+        df = pd.DataFrame(data_list)
         
         if len(df) == 0:
             raise HTTPException(status_code=404, detail="Test non trouvé")
@@ -102,20 +134,32 @@ async def get_test_repeat_history(file_id: str, test_name: str):
 
 
 @router.get("/repeats/{file_id}/patient/{numorden}")
-async def get_patient_repeats(file_id: str, numorden: str):
+async def get_patient_repeats(file_id: str, numorden: str, session: Session = Depends(get_session)):
     """
     Obtenir tous les tests répétés pour un patient spécifique
     """
     try:
-        conn = db.get_connection()
+        # Charger les données avec SQLModel
+        results_stmt = (
+            select(Result)
+            .where(Result.file_id == file_id)
+            .where(Result.numorden == numorden)
+            .order_by(Result.nombre, Result.date)
+        )
+        results = session.exec(results_stmt).all()
         
-        query = f"""
-            SELECT nombre, date, textores
-            FROM results 
-            WHERE file_id = '{file_id}' AND numorden = '{numorden}'
-            ORDER BY nombre, date
-        """
-        df = conn.execute(query).fetchdf()
+        if not results:
+            raise HTTPException(status_code=404, detail="Patient non trouvé")
+        
+        # Convertir en DataFrame
+        data_list = []
+        for result in results:
+            data_list.append({
+                "nombre": result.nombre,
+                "date": result.date.isoformat() if result.date else None,
+                "textores": result.textores
+            })
+        df = pd.DataFrame(data_list)
         
         if len(df) == 0:
             raise HTTPException(status_code=404, detail="Patient non trouvé")
