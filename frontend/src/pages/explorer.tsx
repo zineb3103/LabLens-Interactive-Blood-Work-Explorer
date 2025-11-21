@@ -961,7 +961,7 @@ export default function ExplorerPage() {
       </header>
       {/* Chatbot Button */}
       <button
-        onClick={() => router.push('/assistant')}
+        onClick={() => router.push(file_id ? `/assistant?file_id=${file_id}` : '/assistant')}
         className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-cyan-500/50 z-50"
       >
         <MessageSquare className="w-7 h-7 text-white" />

@@ -20,6 +20,7 @@ interface Message {
 export default function AssistantPage() {
   const router = useRouter();
   const { file_id } = router.query;
+  const resolvedFileId = Array.isArray(file_id) ? file_id[0] : file_id ?? '';
   
   const [hoveredNav, setHoveredNav] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -46,13 +47,13 @@ export default function AssistantPage() {
       setMessages([{
         id: '0',
         role: 'system',
-        content: file_id 
-          ? `🎯 Assistant IA prêt ! Je peux vous aider à analyser le fichier **${file_id}**.\n\nPosez-moi des questions en langage naturel, je les traduirai en requêtes SQL.`
+        content: resolvedFileId 
+          ? `🎯 Assistant IA prêt ! Je peux vous aider à analyser le fichier **${resolvedFileId}**.\n\nPosez-moi des questions en langage naturel, je les traduirai en requêtes SQL.`
           : `👋 Bienvenue ! Veuillez d'abord uploader un fichier sur la page Upload, puis revenez ici pour l'analyser avec l'IA.`,
         timestamp: new Date()
       }]);
     }
-  }, [file_id]);
+  }, [resolvedFileId, messages.length]);
 
   useEffect(() => {
     scrollToBottom();
@@ -63,15 +64,23 @@ export default function AssistantPage() {
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !file_id) return;
+    const trimmedMessage = inputMessage.trim();
+    if (!trimmedMessage || !resolvedFileId) return;
     
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: inputMessage,
+      content: trimmedMessage,
       timestamp: new Date()
     };
     
+    const conversationHistory = [...messages, userMessage]
+      .slice(-5)
+      .map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
@@ -82,12 +91,9 @@ export default function AssistantPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          file_id: file_id,
-          query: inputMessage,
-          conversation_history: messages.slice(-5).map(m => ({
-            role: m.role,
-            content: m.content
-          }))
+          file_id: resolvedFileId,
+          query: trimmedMessage,
+          conversation_history: conversationHistory
         })
       });
 
@@ -100,11 +106,11 @@ export default function AssistantPage() {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: result.response || result.explanation,
+        content: result.response || result.explanation || 'Réponse reçue.',
         timestamp: new Date(),
-        sql: result.sql_query,
-        data: result.data,
-        error: result.error
+        sql: result.success ? result.sql_query : undefined,
+        data: result.success ? result.data : undefined,
+        error: result.success ? undefined : (result.error || 'La génération SQL a échoué.')
       };
       
       setMessages(prev => [...prev, assistantMessage]);
@@ -114,7 +120,7 @@ export default function AssistantPage() {
       const fallbackMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: generateFallbackResponse(inputMessage),
+        content: generateFallbackResponse(trimmedMessage),
         timestamp: new Date(),
         error: 'Backend LLM non disponible - Réponse générée localement'
       };
@@ -129,15 +135,15 @@ export default function AssistantPage() {
     const lowerQuery = query.toLowerCase();
     
     if (lowerQuery.includes('age') || lowerQuery.includes('âge')) {
-      return `Pour obtenir des statistiques sur l'âge, vous pouvez :\n\n1. Aller dans l'Explorer\n2. Consulter l'onglet "Vue d'ensemble"\n3. Voir la section "Statistiques d'Âge"\n\n**Requête SQL équivalente :**\n\`\`\`sql\nSELECT AVG(edad), MIN(edad), MAX(edad) \nFROM results WHERE file_id = '${file_id}'\n\`\`\``;
+      return `Pour obtenir des statistiques sur l'âge, vous pouvez :\n\n1. Aller dans l'Explorer\n2. Consulter l'onglet "Vue d'ensemble"\n3. Voir la section "Statistiques d'Âge"\n\n**Requête SQL équivalente :**\n\`\`\`sql\nSELECT AVG(edad), MIN(edad), MAX(edad) \nFROM results WHERE file_id = '${resolvedFileId || '...'}'\n\`\`\``;
     }
     
     if (lowerQuery.includes('test') && (lowerQuery.includes('fréquent') || lowerQuery.includes('plus'))) {
-      return `Pour voir les tests les plus fréquents :\n\n**Requête SQL :**\n\`\`\`sql\nSELECT nombre, COUNT(*) as count \nFROM results \nWHERE file_id = '${file_id}' \nGROUP BY nombre \nORDER BY count DESC \nLIMIT 10\n\`\`\`\n\nVous pouvez aussi consulter l'onglet **Panels** dans l'Explorer.`;
+      return `Pour voir les tests les plus fréquents :\n\n**Requête SQL :**\n\`\`\`sql\nSELECT nombre, COUNT(*) as count \nFROM results \nWHERE file_id = '${resolvedFileId || '...'}' \nGROUP BY nombre \nORDER BY count DESC \nLIMIT 10\n\`\`\`\n\nVous pouvez aussi consulter l'onglet **Panels** dans l'Explorer.`;
     }
     
     if (lowerQuery.includes('patient') || lowerQuery.includes('combien')) {
-      return `Pour compter les patients :\n\n**Requête SQL :**\n\`\`\`sql\nSELECT COUNT(DISTINCT numorden) as total_patients \nFROM results \nWHERE file_id = '${file_id}'\n\`\`\`\n\nRendez-vous dans l'Explorer pour voir les statistiques détaillées.`;
+      return `Pour compter les patients :\n\n**Requête SQL :**\n\`\`\`sql\nSELECT COUNT(DISTINCT numorden) as total_patients \nFROM results \nWHERE file_id = '${resolvedFileId || '...'}'\n\`\`\`\n\nRendez-vous dans l'Explorer pour voir les statistiques détaillées.`;
     }
     
     return `Je ne peux pas traiter cette requête pour le moment (backend LLM non connecté).\n\n**Suggestions :**\n- Utilisez la page **Explorer** pour filtrer et analyser vos données\n- Consultez les onglets Panels, Repeats et Co-Order\n- Essayez de reformuler votre question\n\n**Requête détectée :** "${query}"`;
@@ -410,7 +416,7 @@ export default function AssistantPage() {
 
           {/* Input Area */}
           <div className="p-6 border-t border-gray-200 bg-white">
-            {!file_id ? (
+            {!resolvedFileId ? (
               <div className="text-center py-4">
                 <p className="text-gray-500 mb-4">
                   Aucun fichier sélectionné. Uploadez d'abord un fichier pour utiliser l'assistant.

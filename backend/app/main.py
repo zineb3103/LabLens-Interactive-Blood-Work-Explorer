@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from .api import ingest, subset, stats, panels, repeats, coorder, views
+from .api import ingest, subset, stats, panels, repeats, coorder, views, llm
 from .db.base import init_db
 from .core.config import settings
 
@@ -78,6 +78,7 @@ app.include_router(panels.router, prefix="/api", tags=["Panels"])
 app.include_router(repeats.router, prefix="/api", tags=["Repeats"])
 app.include_router(coorder.router, prefix="/api", tags=["Co-Ordering"])
 app.include_router(views.router, prefix="/api", tags=["Views & Cohorts"])
+app.include_router(llm.router, prefix="/api", tags=["AI Assistant"])
 
 
 @app.get("/", tags=["Root"])
@@ -132,6 +133,9 @@ async def root():
             "delete_view": "DELETE /api/views/{view_id}",
             "apply_view": "POST /api/views/{view_id}/apply",
             "share_view": "GET /api/views/{view_id}/share",
+            
+            # AI Assistant
+            "llm_query": "POST /api/llm/query",
             
             "health": "GET /health"
         }

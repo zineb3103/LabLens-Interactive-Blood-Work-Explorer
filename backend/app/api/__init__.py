@@ -3,6 +3,6 @@
 API endpoints pour LabLens
 """
 
-from . import ingest, subset, stats, panels, repeats, coorder, views
+from . import ingest, subset, stats, panels, repeats, coorder, views, llm
 
-__all__ = ["ingest", "subset", "stats", "panels", "repeats", "coorder", "views"]
+__all__ = ["ingest", "subset", "stats", "panels", "repeats", "coorder", "views", "llm"]
