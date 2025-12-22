@@ -4,7 +4,7 @@ import Link from 'next/link';
 import {
   Activity, Send, Loader2, Sparkles, Database, FileText,
   TrendingUp, Users, Copy, Check, RotateCcw, MessageSquare,
-  Brain, Code, AlertCircle, Lightbulb
+  Brain, Code, AlertCircle, Lightbulb, Edit3
 } from 'lucide-react';
 
 interface Message {
@@ -30,6 +30,15 @@ export default function AssistantPage() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleEditMessage = (message: Message) => {
+    if (message.role !== 'user') return;
+    setInputMessage(message.content);
+    // Focus sur l'input pour que l'utilisateur modifie directement
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+  };
 
   // Exemples de requêtes
   const exampleQueries = [
@@ -178,50 +187,79 @@ export default function AssistantPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-cyan-50 flex flex-col">
-      {/* Header */}
-      <header className="border-b border-gray-100 bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+      {/* Header aligné sur index.tsx */}
+      <header className="border-b border-gray-100 bg-white sticky top-0 z-50 shadow-sm">
+        <div className="max-w-screen-3xl mx-auto w-full px-4 sm:px-6 lg:px-12 xl:px-16 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-3">
-              <Activity className="w-8 h-8 text-cyan-500" />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
+            <div className="flex items-center space-x-3">
+              <Activity className="w-9 h-9 sm:w-10 sm:h-10 text-cyan-500" />
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
                 LabLens
               </h1>
-            </Link>
+            </div>
 
-            <nav className="flex items-center space-x-8">
-              {['Home', 'Upload', 'Explorer', 'Assistant'].map(item => (
-                <Link
-                  key={item}
-                  href={item === 'Home' ? '/' : item === 'Assistant' ? '/assistant' : `/${item.toLowerCase()}`}
-                  className="relative px-4 py-2 text-gray-700 font-medium transition-all duration-300"
-                  onMouseEnter={() => setHoveredNav(item)}
-                  onMouseLeave={() => setHoveredNav(null)}
-                  style={{
-                    transform: hoveredNav === item ? 'translateY(-2px)' : 'translateY(0)',
-                    color: hoveredNav === item ? '#06b6d4' : '#374151'
-                  }}
-                >
-                  {item}
-                  {hoveredNav === item && (
-                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full" />
-                  )}
-                </Link>
-              ))}
+            <nav className="flex items-center space-x-8 text-sm sm:text-base lg:text-lg">
+              <Link
+                href="/"
+                className="relative px-4 py-2 text-gray-700 font-medium transition-all duration-300"
+                onMouseEnter={() => setHoveredNav('Home')}
+                onMouseLeave={() => setHoveredNav(null)}
+                style={{
+                  transform: hoveredNav === 'Home' ? 'translateY(-2px)' : 'translateY(0)',
+                  color: hoveredNav === 'Home' ? '#06b6d4' : '#374151'
+                }}
+              >
+                Home
+                {hoveredNav === 'Home' && (
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full" />
+                )}
+              </Link>
+              <Link
+                href="/upload"
+                className="relative px-4 py-2 text-gray-700 font-medium transition-all duration-300"
+                onMouseEnter={() => setHoveredNav('Upload')}
+                onMouseLeave={() => setHoveredNav(null)}
+                style={{
+                  transform: hoveredNav === 'Upload' ? 'translateY(-2px)' : 'translateY(0)',
+                  color: hoveredNav === 'Upload' ? '#06b6d4' : '#374151'
+                }}
+              >
+                Upload
+                {hoveredNav === 'Upload' && (
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full" />
+                )}
+              </Link>
+              <Link
+                href="/explorer"
+                className="relative px-4 py-2 text-gray-700 font-medium transition-all duration-300"
+                onMouseEnter={() => setHoveredNav('Explorer')}
+                onMouseLeave={() => setHoveredNav(null)}
+                style={{
+                  transform: hoveredNav === 'Explorer' ? 'translateY(-2px)' : 'translateY(0)',
+                  color: hoveredNav === 'Explorer' ? '#06b6d4' : '#374151'
+                }}
+              >
+                Explorer
+                {hoveredNav === 'Explorer' && (
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full" />
+                )}
+              </Link>
             </nav>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-6 py-8">
+      <div className="flex-1 flex flex-col max-w-screen-3xl w-full mx-auto px-4 sm:px-6 lg:px-12 xl:px-16 py-8">
         {/* Title */}
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent flex items-center space-x-3">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent flex items-center space-x-3">
               <Brain className="w-10 h-10 text-cyan-500" />
               <span>Assistant IA</span>
             </h1>
-            <p className="text-gray-600">Interrogez vos données en langage naturel</p>
+            <p className="text-gray-600 text-base sm:text-lg md:text-xl">
+              Interrogez vos données en langage naturel
+            </p>
           </div>
           
           {messages.length > 1 && (
@@ -261,6 +299,15 @@ export default function AssistantPage() {
                         <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center">
                           <Users className="w-5 h-5 text-white" />
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handleEditMessage(message)}
+                          className="ml-2 inline-flex items-center space-x-1 text-xs text-gray-400 hover:text-cyan-600 transition-colors"
+                          title="Éditer ce message"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>Éditer</span>
+                        </button>
                       </>
                     )}
                     {message.role === 'system' && (
@@ -462,16 +509,38 @@ export default function AssistantPage() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-gradient-to-r from-cyan-500 to-blue-600 py-8 mt-8">
-        <div className="max-w-7xl mx-auto px-6">
+      {/* Footer aligné sur index.tsx */}
+      <footer className="bg-gradient-to-r from-cyan-500 to-blue-600 py-12">
+        <div className="max-w-screen-3xl mx-auto w-full px-4 sm:px-6 lg:px-12 xl:px-16">
           <div className="text-center">
-            <p className="text-white/90 text-sm">
-              IDSCC 5 — Artificial Intelligence, ENSAO | Prof. Abdelmounaim Kerkri
+            <div className="flex items-center justify-center space-x-3 mb-4">
+              <Activity className="w-9 h-9 sm:w-10 sm:h-10 text-white" />
+              <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">LabLens</h3>
+            </div>
+            <p className="text-white/90 mb-6 text-base sm:text-lg md:text-xl">
+              IDSCC 5 — Artificial Intelligence, ENSAO
             </p>
-            <p className="text-white/70 text-xs mt-2">
-              © 2025 LabLens. Tous droits réservés.
+            <p className="text-white/90 mb-2 text-base sm:text-lg md:text-xl">
+              Prof. Abdelmounaim Kerkri
             </p>
+            <div className="flex items-center justify-center space-x-6 text-sm sm:text-base md:text-lg text-white/80">
+              <span>Farah</span>
+              <span>•</span>
+              <span>Zineb</span>
+              <span>•</span>
+              <span>Toufali</span>
+              <span>•</span>
+              <span>Oumaima</span>
+              <span>•</span>
+              <span>Qritel</span>
+              <span>•</span>
+              <span>Salima</span>
+            </div>
+            <div className="mt-6 pt-6 border-t border-white/20">
+              <p className="text-white/70 text-sm sm:text-base">
+                © 2025 LabLens. Tous droits réservés.
+              </p>
+            </div>
           </div>
         </div>
       </footer>

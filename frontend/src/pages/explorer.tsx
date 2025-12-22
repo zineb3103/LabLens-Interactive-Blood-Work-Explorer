@@ -924,37 +924,64 @@ export default function ExplorerPage() {
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-cyan-50">
-      {/* Header */}
-      <header className="bg-white shadow-md mb-8">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-cyan-50 flex flex-col">
+      {/* Header (aligné sur index.tsx) */}
+      <header className="border-b border-gray-100 bg-white sticky top-0 z-50 shadow-sm">
+        <div className="max-w-screen-3xl mx-auto w-full px-4 sm:px-6 lg:px-12 xl:px-16 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-3">
-              <Activity className="w-8 h-8 text-cyan-500" />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
+            <div className="flex items-center space-x-3">
+              <Activity className="w-9 h-9 sm:w-10 sm:h-10 text-cyan-500" />
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
                 LabLens
               </h1>
-            </Link>
+            </div>
 
-            <nav className="flex items-center space-x-8">
-              {['Home', 'Upload', 'Explorer'].map(item => (
-                <Link
-                  key={item}
-                  href={item === 'Home' ? '/' : `/${item.toLowerCase()}`}
-                  className="relative px-4 py-2 text-gray-700 font-medium transition-all duration-300"
-                  onMouseEnter={() => setHoveredNav(item)}
-                  onMouseLeave={() => setHoveredNav(null)}
-                  style={{
-                    transform: hoveredNav === item ? 'translateY(-2px)' : 'translateY(0)',
-                    color: hoveredNav === item ? '#06b6d4' : '#374151'
-                  }}
-                >
-                  {item}
-                  {hoveredNav === item && (
-                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full" />
-                  )}
-                </Link>
-              ))}
+            <nav className="flex items-center space-x-8 text-sm sm:text-base lg:text-lg">
+              <Link
+                href="/"
+                className="relative px-4 py-2 text-gray-700 font-medium transition-all duration-300"
+                onMouseEnter={() => setHoveredNav('Home')}
+                onMouseLeave={() => setHoveredNav(null)}
+                style={{
+                  transform: hoveredNav === 'Home' ? 'translateY(-2px)' : 'translateY(0)',
+                  color: hoveredNav === 'Home' ? '#06b6d4' : '#374151'
+                }}
+              >
+                Home
+                {hoveredNav === 'Home' && (
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full" />
+                )}
+              </Link>
+              <Link
+                href="/upload"
+                className="relative px-4 py-2 text-gray-700 font-medium transition-all duration-300"
+                onMouseEnter={() => setHoveredNav('Upload')}
+                onMouseLeave={() => setHoveredNav(null)}
+                style={{
+                  transform: hoveredNav === 'Upload' ? 'translateY(-2px)' : 'translateY(0)',
+                  color: hoveredNav === 'Upload' ? '#06b6d4' : '#374151'
+                }}
+              >
+                Upload
+                {hoveredNav === 'Upload' && (
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full" />
+                )}
+              </Link>
+              <Link
+                href="/explorer"
+                className="relative px-4 py-2 text-gray-700 font-medium transition-all duration-300"
+                onMouseEnter={() => setHoveredNav('Explorer')}
+                onMouseLeave={() => setHoveredNav(null)}
+                style={{
+                  transform: hoveredNav === 'Explorer' ? 'translateY(-2px)' : 'translateY(0)',
+                  color: hoveredNav === 'Explorer' ? '#06b6d4' : '#374151'
+                }}
+              >
+                Explorer
+                {hoveredNav === 'Explorer' && (
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full" />
+                )}
+              </Link>
             </nav>
           </div>
         </div>
@@ -966,13 +993,15 @@ export default function ExplorerPage() {
       >
         <MessageSquare className="w-7 h-7 text-white" />
       </button>
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="flex-1 max-w-screen-3xl mx-auto w-full px-4 sm:px-6 lg:px-12 xl:px-16 py-8">
         {/* Title */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
             Explorateur de Données
           </h1>
-          <p className="text-gray-600">Filtrez, analysez et visualisez vos données de laboratoire</p>
+          <p className="text-gray-600 text-base sm:text-lg md:text-xl">
+            Filtrez, analysez et visualisez vos données de laboratoire
+          </p>
           {file_id && (
             <p className="text-sm text-gray-500 mt-2">File ID: {file_id}</p>
           )}
@@ -1990,37 +2019,34 @@ export default function ExplorerPage() {
       )}
       
       {/* Footer */}
-      <footer className="bg-gradient-to-r from-cyan-500 to-blue-600 py-12 mt-12">
-        <div className="max-w-7xl mx-auto px-6">
+      <footer className="bg-gradient-to-r from-cyan-500 to-blue-600 py-12">
+        <div className="max-w-screen-3xl mx-auto w-full px-4 sm:px-6 lg:px-12 xl:px-16">
           <div className="text-center">
             <div className="flex items-center justify-center space-x-3 mb-4">
-              <Activity className="w-8 h-8 text-white" />
-              <h3 className="text-2xl font-bold text-white">LabLens</h3>
+              <Activity className="w-9 h-9 sm:w-10 sm:h-10 text-white" />
+              <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">LabLens</h3>
             </div>
-            <p className="text-white/90 mb-6">
+            <p className="text-white/90 mb-6 text-base sm:text-lg md:text-xl">
               IDSCC 5 — Artificial Intelligence, ENSAO
             </p>
-            <p className="text-white/90 mb-2">
+            <p className="text-white/90 mb-2 text-base sm:text-lg md:text-xl">
               Prof. Abdelmounaim Kerkri
             </p>
-            <p className="text-white/90 mb-6">
-              National School of Applied Sciences (ENSAO), Mohammed First University
-            </p>
-            <div className="flex items-center justify-center space-x-6 text-sm text-white/80">
+            <div className="flex items-center justify-center space-x-6 text-sm sm:text-base md:text-lg text-white/80">
               <span>Farah</span>
               <span>•</span>
               <span>Zineb</span>
               <span>•</span>
-              <span>Oumaima</span>
-              <span>•</span>
               <span>Toufali</span>
+              <span>•</span>
+              <span>Oumaima</span>
               <span>•</span>
               <span>Qritel</span>
               <span>•</span>
               <span>Salima</span>
             </div>
             <div className="mt-6 pt-6 border-t border-white/20">
-              <p className="text-white/70 text-sm">
+              <p className="text-white/70 text-sm sm:text-base">
                 © 2025 LabLens. Tous droits réservés.
               </p>
             </div>

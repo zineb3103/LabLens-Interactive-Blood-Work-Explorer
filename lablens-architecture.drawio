@@ -1,0 +1,212 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="lablens-architecture" name="LabLens Architecture">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Title -->
+        <mxCell id="title" value="LabLens - Architecture Générale" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="300" y="20" width="600" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- Frontend Layer -->
+        <mxCell id="frontend-layer" value="Frontend Layer (Next.js/React)" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="300" height="280" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="page-home" value="Page Accueil (/)&#xa;- Présentation LabLens&#xa;- Navigation" style="text;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="frontend-layer">
+          <mxGeometry y="40" width="280" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="page-upload" value="Page Upload (/upload)&#xa;- Téléversement fichiers&#xa;- Sélection file_id" style="text;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="frontend-layer">
+          <mxGeometry y="100" width="280" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="page-explorer" value="Page Explorer (/explorer)&#xa;- Tableaux interactifs&#xa;- Filtres, statistiques&#xa;- Panels, répétitions" style="text;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="frontend-layer">
+          <mxGeometry y="160" width="280" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="page-assistant" value="Page Assistant (/assistant)&#xa;- Interface de chat&#xa;- Questions langage naturel&#xa;- Affichage SQL + résultats" style="text;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="frontend-layer">
+          <mxGeometry y="220" width="280" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Backend Layer -->
+        <mxCell id="backend-layer" value="Backend Layer (FastAPI)" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="400" y="80" width="320" height="400" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="api-ingest" value="/api/ingest&#xa;Upload et ingestion fichiers" style="text;strokeColor=#b85450;fillColor=#f8cecc;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="backend-layer">
+          <mxGeometry y="40" width="300" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="api-subset" value="/api/subset&#xa;Filtrage et sous-ensembles" style="text;strokeColor=#b85450;fillColor=#f8cecc;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="backend-layer">
+          <mxGeometry y="90" width="300" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="api-stats" value="/api/stats&#xa;Statistiques descriptives" style="text;strokeColor=#b85450;fillColor=#f8cecc;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="backend-layer">
+          <mxGeometry y="140" width="300" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="api-panels" value="/api/panels&#xa;Analyse des panels de tests" style="text;strokeColor=#b85450;fillColor=#f8cecc;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="backend-layer">
+          <mxGeometry y="190" width="300" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="api-repeats" value="/api/repeats&#xa;Détection des répétitions" style="text;strokeColor=#b85450;fillColor=#f8cecc;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="backend-layer">
+          <mxGeometry y="240" width="300" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="api-coorder" value="/api/coorder&#xa;Co-occurrence de tests" style="text;strokeColor=#b85450;fillColor=#f8cecc;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="backend-layer">
+          <mxGeometry y="290" width="300" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="api-llm" value="/api/llm/query&#xa;Assistant IA - Génération SQL&#xa;à partir de questions NL" style="text;strokeColor=#b85450;fillColor=#ffcccc;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;fontStyle=1" vertex="1" parent="backend-layer">
+          <mxGeometry y="340" width="300" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Database Layer -->
+        <mxCell id="db-layer" value="Database Layer (DuckDB)" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="780" y="80" width="280" height="200" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="duckdb-storage" value="Stockage des fichiers&#xa;ingérés (CSV, Parquet)" style="text;strokeColor=#9673a6;fillColor=#e1d5e7;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="db-layer">
+          <mxGeometry y="40" width="260" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="duckdb-query" value="Exécution requêtes SQL&#xa;analytiques performantes" style="text;strokeColor=#9673a6;fillColor=#e1d5e7;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="db-layer">
+          <mxGeometry y="90" width="260" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="duckdb-indexing" value="Indexation par file_id&#xa;pour multi-tenant" style="text;strokeColor=#9673a6;fillColor=#e1d5e7;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="db-layer">
+          <mxGeometry y="140" width="260" height="50" as="geometry" />
+        </mxCell>
+        
+        <!-- LLM Service (Optional) -->
+        <mxCell id="llm-service" value="LLM Service (Optionnel)&#xa;Génération SQL depuis NL" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="400" y="520" width="320" height="120" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="llm-generate" value="Génération requête SQL&#xa;à partir de question NL" style="text;strokeColor=#666666;fillColor=#f5f5f5;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="llm-service">
+          <mxGeometry y="40" width="300" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="llm-explain" value="Explication des résultats&#xa;et validation requête" style="text;strokeColor=#666666;fillColor=#f5f5f5;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;whiteSpace=wrap;html=1;rounded=1;arcSize=5;" vertex="1" parent="llm-service">
+          <mxGeometry y="80" width="300" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- Arrows: Frontend to Backend -->
+        <mxCell id="arrow-upload" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#1ba1e2;" edge="1" parent="1" source="page-upload" target="api-ingest">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="500" y="300" as="sourcePoint" />
+            <mxPoint x="550" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow-explorer" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#1ba1e2;" edge="1" parent="1" source="page-explorer" target="api-subset">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="500" y="300" as="sourcePoint" />
+            <mxPoint x="550" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow-assistant" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.85;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#e67300;" edge="1" parent="1" source="page-assistant" target="api-llm">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="500" y="300" as="sourcePoint" />
+            <mxPoint x="550" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Arrows: Backend to Database -->
+        <mxCell id="arrow-db-ingest" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.1;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#9673a6;" edge="1" parent="1" source="api-ingest" target="duckdb-storage">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="500" y="300" as="sourcePoint" />
+            <mxPoint x="550" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow-db-query" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#9673a6;" edge="1" parent="1" source="api-subset" target="duckdb-query">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="500" y="300" as="sourcePoint" />
+            <mxPoint x="550" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Arrows: Backend to LLM -->
+        <mxCell id="arrow-llm" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#666666;dashed=1;" edge="1" parent="1" source="api-llm" target="llm-generate">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="500" y="300" as="sourcePoint" />
+            <mxPoint x="550" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Legend -->
+        <mxCell id="legend" value="Légende" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="40" y="420" width="300" height="220" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-http" value="HTTP Request/Response" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="legend">
+          <mxGeometry y="30" width="280" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-arrow-http" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#1ba1e2;" edge="1" parent="legend">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="20" y="15" as="sourcePoint" />
+            <mxPoint x="60" y="15" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="legend-db" value="Database Query" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="legend">
+          <mxGeometry y="60" width="280" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-arrow-db" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#9673a6;" edge="1" parent="legend">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="20" y="45" as="sourcePoint" />
+            <mxPoint x="60" y="45" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="legend-llm" value="LLM Service (Optionnel)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="legend">
+          <mxGeometry y="90" width="280" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-arrow-llm" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#666666;dashed=1;" edge="1" parent="legend">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="20" y="75" as="sourcePoint" />
+            <mxPoint x="60" y="75" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="legend-assistant" value="Assistant IA Flow" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="legend">
+          <mxGeometry y="120" width="280" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-arrow-assistant" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#e67300;" edge="1" parent="legend">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="20" y="105" as="sourcePoint" />
+            <mxPoint x="60" y="105" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Data Flow Labels -->
+        <mxCell id="label-1" value="1. Upload fichier" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#1ba1e2;" vertex="1" parent="1">
+          <mxGeometry x="200" y="200" width="100" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="label-2" value="2. Requêtes analytiques" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#1ba1e2;" vertex="1" parent="1">
+          <mxGeometry x="200" y="240" width="120" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="label-3" value="3. Question NL" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#e67300;" vertex="1" parent="1">
+          <mxGeometry x="200" y="280" width="100" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="label-4" value="4. SQL généré" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="500" y="480" width="80" height="20" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+

@@ -24,11 +24,6 @@ self.__BUILD_MANIFEST = {
       "static/chunks/main.js",
       "static/chunks/pages/assistant.js"
     ],
-    "/explorer": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/explorer.js"
-    ],
     "/upload": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",

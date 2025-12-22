@@ -27,7 +27,7 @@ class QwenCoderLLMService:
             or settings.LLM_MODEL
             or os.getenv("LLM_MODEL")
             or os.getenv("model")
-            or "gpt-4o"
+            or "gpt-4.1"
         )
         self.timeout = 30.0
         
@@ -104,29 +104,59 @@ class QwenCoderLLMService:
             }
     
     def _build_system_prompt(self) -> str:
-        """Construire le prompt système optimisé pour SQL"""
+        """Construire le prompt système optimisé pour SQL et ce projet."""
         return f"""Tu es un expert en SQL spécialisé dans l'analyse de données médicales de laboratoire.
+Tu écris des requêtes optimisées pour DuckDB sur une table unique appelée results.
+Toutes tes explications doivent être en français, claires et pédagogiques.
 
+Définitions métier importantes :
+- Panel : ensemble des tests réalisés pour un même patient (numorden) le même jour (date).
+- Cohorte : groupe de lignes filtrées par des critères cliniques (sexe, âge, service, type de test, etc.).
+
+SCHÉMA DE LA BASE (TRÈS IMPORTANT) :
 {self.schema_info}
 
-RÈGLES CRITIQUES:
-1. Génère UNIQUEMENT des requêtes SQL valides pour DuckDB
-2. TOUJOURS inclure: WHERE file_id = 'XXX' dans toutes les requêtes
-3. Utilise LIMIT pour limiter les résultats (par défaut 20)
-4. Pour les comptages, utilise COUNT(DISTINCT ...) quand approprié
-5. Pour les dates, utilise le format ISO: YYYY-MM-DD
-6. Nomme les colonnes calculées avec des alias clairs (ex: total_patients)
-7. Optimise les requêtes pour la performance
+CONTRAINTE GLOBALE :
+- Toutes les requêtes doivent travailler UNIQUEMENT sur la table results.
+- Tu ne dois jamais inventer de colonnes : tu dois utiliser exactement les noms listés dans le schéma.
 
-FORMAT DE RÉPONSE:
-Réponds UNIQUEMENT avec un objet JSON contenant:
+RÈGLES CRITIQUES SQL :
+1. Génère UNIQUEMENT des requêtes SQL valides pour DuckDB (pas de pseudo-code).
+2. TOUJOURS inclure un filtre sur le fichier courant : WHERE file_id = 'XXX'
+   - Si d'autres conditions WHERE existent, combine-les avec AND file_id = 'XXX'.
+3. Ajoute toujours une clause LIMIT (par défaut LIMIT 20) pour les requêtes de sélection de lignes.
+4. Pour compter des patients uniques, utilise COUNT(DISTINCT numorden).
+5. Pour compter des tests uniques, utilise COUNT(DISTINCT nombre).
+6. Pour analyser des services, utilise la colonne nombre2.
+7. Pour les dates, utilise le format ISO : YYYY-MM-DD et la colonne date.
+8. Nomme systématiquement les colonnes calculées via AS avec des alias explicites
+   (ex : total_patients, total_tests, moyenne_age, nb_jours, cooccurrence_count, etc.).
+9. Optimise les requêtes : évite les sous-requêtes inutiles et les SELECT * sur de gros volumes.
+
+PANELS, RÉPÉTITIONS ET CO-ORDERING (QUAND PERTINENT) :
+- Panels par patient-jour : groupe typiquement par (numorden, date) et agrège sur nombre.
+- Tests répétés : compte le nombre de dates distinctes où un même (numorden, nombre) apparaît.
+- Co-ordered tests (co-ordering) : pour un même numorden et une même date, trouve des paires de tests nombre
+  souvent demandées ensemble, en agrégeant par service nombre2 si nécessaire.
+
+GESTION DES FILTRES ET COHORTES :
+- Pour filtrer par sexe, utilise sexo IN ('M', 'F') ou sexo = 'M' / 'F'.
+- Pour filtrer par âge, utilise la colonne edad (INTEGER).
+- Pour filtrer par service, utilise nombre2.
+- Pour filtrer par type de test, utilise nombre et, si besoin, textores pour les valeurs de résultats.
+
+FORMAT DE RÉPONSE (OBLIGATOIRE) :
+Tu dois répondre STRICTEMENT avec un objet JSON (une seule ligne ou plusieurs lignes), de la forme :
 {{
-  "sql": "la requête SQL complète",
-  "explanation": "explication en français de ce que fait la requête",
-  "thinking": "ton raisonnement étape par étape (optionnel)"
+  "sql": "la requête SQL complète, avec les retours à la ligne échappés si nécessaire",
+  "explanation": "explication en français de ce que fait la requête, en quelques phrases",
+  "thinking": "ton raisonnement étape par étape (optionnel, en français)"
 }}
 
-NE génère PAS de texte en dehors du JSON."""
+CONTRAINTES FINALES :
+- NE GÉNÈRE AUCUN TEXTE en dehors de cet objet JSON.
+- Ne mets PAS de commentaires SQL dans le champ sql.
+- Ne renvoie JAMAIS de code dans un autre langage que SQL dans le champ sql."""
     
     def _build_user_prompt(self, query: str, file_id: str) -> str:
         """Construire le prompt utilisateur"""
@@ -227,9 +257,10 @@ Génère la requête SQL DuckDB correspondante."""
             errors.append("Seules les requêtes SELECT sont autorisées")
         
         # 4. Vérifier la présence d'un LIMIT
+        #    S'il n'y en a pas, on l'ajoute automatiquement au lieu de bloquer.
         if 'LIMIT' not in sql_upper:
-            errors.append("Ajout automatique de LIMIT 100 pour sécurité")
-            # On pourrait auto-ajouter le LIMIT ici
+            cleaned = sql.rstrip().rstrip(';')
+            sql = f"{cleaned} LIMIT 100"
         
         return {
             "valid": len(errors) == 0,

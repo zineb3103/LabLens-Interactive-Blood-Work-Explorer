@@ -54,12 +54,20 @@ async def process_llm_query(request: LLMQueryRequest):
         validation = llm_service.validate_sql(sql_query, request.file_id)
         
         if not validation["valid"]:
+            # Construire un message humain lisible avec les causes
+            errors = validation.get("errors", [])
+            if errors:
+                reasons = " ; ".join(errors)
+                response_msg = f"La requête générée n'est pas sécurisée : {reasons}."
+            else:
+                response_msg = "La requête générée n'est pas sécurisée."
+
             return {
                 "success": False,
-                "response": "La requête générée n'est pas sécurisée.",
+                "response": response_msg,
                 "sql_query": sql_query,
                 "explanation": explanation,
-                "errors": validation["errors"]
+                "errors": errors,
             }
         
         try:
